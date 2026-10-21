@@ -1,0 +1,10 @@
+/** Spinner component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.spinner-wrap{display:grid;place-items:center;padding:44px}
+.spinner{width:34px;height:34px;border:3px solid var(--red-light);border-top-color:var(--red-primary);border-radius:50%;animation:spin .8s linear infinite;filter:drop-shadow(0 0 6px rgba(255,26,60,.5))}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Spatial UI ===== */
+.spinner{border-color:color-mix(in srgb,var(--red-primary) 20%,transparent);border-top-color:var(--red-primary);filter:drop-shadow(0 0 6px var(--sp-glow))}
+@media(prefers-reduced-motion:reduce){.spinner{animation-duration:2.4s!important}}

@@ -1,0 +1,12 @@
+/** Chat component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.chat-card{margin-top:22px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius);box-shadow:var(--shadow-md);overflow:hidden;transition:border-color .25s}
+.chat-card:hover{border-color:var(--border-accent)}
+.chat-error{display:flex;gap:8px;align-items:center;margin:12px 20px 0;padding:11px 13px;border-radius:12px;background:var(--danger-light);border:1px solid var(--red-border);color:var(--danger);font-size:.84rem}
+.chat-error svg{flex:none}
+
+/* ===== Spatial UI: the chat is its own floating pane. Message text is dense, so it is near-opaque with NO blur
+   (long chats stay smooth on phones). ===== */
+.chat-card{background:color-mix(in srgb,var(--sp-glass-solid) 92%,transparent);border-color:var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-2)}
+.chat-error{background:color-mix(in srgb,var(--danger) 12%,var(--sp-glass-solid));color:var(--sp-danger-text);border-radius:var(--sp-radius-sm)}

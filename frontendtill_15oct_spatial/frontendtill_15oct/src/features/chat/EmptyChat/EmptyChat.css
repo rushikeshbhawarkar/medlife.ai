@@ -1,0 +1,17 @@
+/** EmptyChat component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.empty-chat{min-height:310px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
+.empty-chat>span{width:50px;height:50px;display:grid;place-items:center;border-radius:16px;background:var(--red-light);border:1px solid var(--border-accent);color:var(--red-primary);margin-bottom:16px}
+.empty-chat h3{font-size:1.45rem;margin-bottom:8px}
+.empty-chat p{color:var(--text-secondary);font-size:.9rem}
+.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;max-width:660px;margin-top:10px}
+.suggestion-chips button{border:1px solid var(--border-subtle);background:var(--bg-tertiary);color:var(--text-secondary);border-radius:999px;padding:9px 13px;font-size:.78rem;font-weight:600;transition:border-color .2s,color .2s,background .2s}
+.suggestion-chips button:hover{background:var(--red-light);border-color:var(--red-primary);color:var(--red-primary)}
+
+/* ===== Spatial UI: suggestion chips ===== */
+.empty-chat>span{background:color-mix(in srgb,var(--red-primary) 14%,transparent);color:var(--sp-accent-text);border-radius:var(--sp-radius-sm);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 24px -10px var(--sp-glow)}
+.suggestion-chips button{min-height:44px;background:var(--sp-glass-raised);border-color:var(--sp-edge);box-shadow:var(--sp-edge-top);transition:transform .25s var(--sp-ease),border-color .2s,color .2s,background .2s}
+.suggestion-chips button:hover{background:color-mix(in srgb,var(--red-primary) 12%,var(--sp-glass-raised));color:var(--sp-accent-text)}
+@media(hover:hover){.suggestion-chips button:hover{transform:translateY(-2px)}}
+.suggestion-chips button:active{transform:scale(.97)}

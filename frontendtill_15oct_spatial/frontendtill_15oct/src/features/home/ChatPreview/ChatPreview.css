@@ -1,0 +1,52 @@
+/** ChatPreview component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.chat-preview-wrap{position:relative;max-width:520px;margin:10px auto 0;padding:30px 12px}
+.preview-blob{position:absolute;width:230px;height:230px;filter:blur(45px);opacity:.45;border-radius:50%}
+.blob-a{background:#ff1a3c;top:0;left:10px}
+.blob-b{background:#9f1239;right:0;bottom:0}
+.preview-card{position:relative;z-index:1;background:var(--bg-card);border:1px solid var(--border-accent);border-radius:24px;padding:22px;box-shadow:var(--shadow-lg);transform:rotate(1deg)}
+.preview-head{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--border-subtle)}
+.preview-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#ff1a3c,#9f1239);box-shadow:0 0 16px rgba(255,26,60,.45)}
+.preview-head b,.preview-head small{display:block}
+.preview-head small{font-size:.76rem;color:var(--text-muted)}
+.preview-head i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--emerald);margin-right:5px;box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:previewPulse 2s infinite}
+.preview-body{padding:18px 0;display:grid;gap:14px}
+.bubble{font-size:.82rem;padding:13px 15px;border-radius:16px;line-height:1.6}
+.user-bubble{background:var(--red-light);border:1px solid var(--red-border);justify-self:end;max-width:88%;border-bottom-right-radius:4px}
+.ai-bubble{background:var(--bg-tertiary);border:1px solid var(--border-subtle);max-width:100%;border-bottom-left-radius:4px}
+.ai-bubble svg{color:var(--red-primary);width:100%;margin-top:10px;filter:drop-shadow(0 0 4px rgba(255,26,60,.55))}
+.preview-input{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border-subtle);background:var(--bg-tertiary);border-radius:999px;padding:7px 8px 7px 15px;color:var(--text-muted);font-size:.78rem}
+.preview-input button{border:0;border-radius:50%;width:34px;height:34px;background:linear-gradient(135deg,#ff1a3c,#be123c);box-shadow:0 4px 14px rgba(255,26,60,.4);color:#fff;display:grid;place-items:center}
+.preview-chip{position:absolute;z-index:2;display:flex;align-items:center;gap:7px;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border-accent);border-radius:999px;box-shadow:var(--shadow-md);font-size:.78rem;font-weight:700}
+.chip-private{left:-10px;top:4px;color:var(--red-primary)}
+.chip-instant{right:-4px;bottom:10px;color:var(--text-primary)}
+.chip-instant svg{color:var(--red-primary)}
+@keyframes previewPulse{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}50%{box-shadow:0 0 0 6px rgba(52,211,153,0)}}
+@media(max-width:600px){.preview-card{padding:16px}.preview-chip{font-size:.68rem;padding:8px 10px}.chip-private{left:0}.chip-instant{right:0}}
+
+/* ===== Spatial UI: suspended workspace ===== */
+.chat-preview-wrap{padding:34px 14px 46px}
+.chat-preview-wrap::after{content:"";position:absolute;left:14%;right:14%;bottom:12px;height:26px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);filter:blur(8px);z-index:0}
+[data-theme='light'] .chat-preview-wrap::after{background:radial-gradient(closest-side,rgba(15,23,42,.22),transparent)}
+.blob-a{background:var(--red-primary)}
+.blob-b{background:var(--red-hover)}
+[data-theme='light'] .preview-blob{opacity:.3}
+.preview-card{background:color-mix(in srgb,var(--sp-glass-solid) 74%,transparent);-webkit-backdrop-filter:var(--sp-blur-heavy);backdrop-filter:var(--sp-blur-heavy);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-3);transform:perspective(1400px) rotateY(-7deg) rotateX(3deg)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.preview-card{background:var(--sp-glass-solid)}}
+.preview-avatar{background:linear-gradient(145deg,var(--red-glow),var(--sp-accent-fill));box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 16px -4px color-mix(in srgb,var(--red-primary) 60%,transparent)}
+.ai-bubble{background:color-mix(in srgb,var(--text-primary) 7%,transparent);border-color:var(--sp-edge)}
+.user-bubble{background:color-mix(in srgb,var(--red-primary) 18%,transparent)}
+.preview-input{background:color-mix(in srgb,var(--text-primary) 6%,transparent);border-color:var(--sp-edge);box-shadow:inset 0 1px 2px color-mix(in srgb,#000 16%,transparent)}
+.preview-input button{background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 12px -2px color-mix(in srgb,var(--red-primary) 55%,transparent)}
+.preview-chip{background:color-mix(in srgb,var(--sp-glass-solid) 84%,transparent);border:1px solid var(--sp-edge);box-shadow:var(--sp-edge-top),var(--sp-shadow-2)}
+@keyframes spFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-8px,0)}}
+.chip-private{animation:spFloat 7s ease-in-out infinite}
+.chip-instant{animation:spFloat 8s ease-in-out -3s infinite}
+@media(max-width:900px){.preview-card{transform:none}}
+@media(prefers-reduced-motion:reduce){.chip-private,.chip-instant{animation:none}}
+/* AA: label text uses the primary text token; the accent lives on the icon */
+.chip-private{color:var(--text-primary)}
+.chip-private svg{color:var(--red-primary)}
+
+@media(prefers-reduced-motion:reduce){.preview-head i{animation:none}}

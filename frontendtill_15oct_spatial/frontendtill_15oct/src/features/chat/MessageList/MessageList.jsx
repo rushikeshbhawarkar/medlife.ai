@@ -1,0 +1,4 @@
+/** MessageList component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import {useEffect,useRef} from 'react';import MessageBubble from '../MessageBubble/index.js';import TypingIndicator from '../TypingIndicator/index.js';import './MessageList.css';export default function MessageList({messages,busy}){const ref=useRef(null);useEffect(()=>{ref.current?.scrollTo({top:ref.current.scrollHeight,behavior:'smooth'})},[messages,busy]);return <div className="message-list" ref={ref}>{messages.map((m,i)=><MessageBubble key={`${m.ts}-${i}`} message={m}/>)}{busy&&<TypingIndicator/>}</div>}

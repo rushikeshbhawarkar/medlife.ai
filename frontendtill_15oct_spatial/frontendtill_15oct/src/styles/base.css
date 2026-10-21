@@ -1,0 +1,56 @@
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font-body);color:var(--text-primary);background:var(--bg-primary);line-height:1.6;-webkit-font-smoothing:antialiased;transition:background-color .25s ease,color .25s ease}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{font-family:var(--font-display);font-weight:800;line-height:1.15;letter-spacing:-.03em;margin:0 0 14px}
+p{margin:0 0 16px}
+img,svg{display:block}
+.container{width:min(1160px,calc(100% - 40px));margin-inline:auto}
+:focus-visible{outline:3px solid var(--red-primary);outline-offset:3px}
+.section{padding:80px 0}
+.soft-hero{background:radial-gradient(circle at 50% -20%,var(--glow-accent),transparent 70%),linear-gradient(to right,var(--grid-line) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(to bottom,var(--grid-line) 1px,transparent 1px) 0 0/40px 40px,var(--bg-primary)}
+.muted{color:var(--text-muted)}
+.grid{display:grid;gap:22px}
+.card{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:26px}
+.page-inner{margin-top:-72px;padding:168px 0 72px}
+.section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px}
+
+/* Light / dark switch button (navbar + dashboard top bar) */
+.theme-toggle{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--border-subtle);background:var(--bg-tertiary);color:var(--red-primary);transition:border-color .2s,background .2s,transform .2s}
+.theme-toggle:hover{border-color:var(--red-primary);background:var(--red-light);transform:rotate(12deg)}
+
+/* Scrollbars */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--red-primary)}
+::selection{background:var(--red-primary);color:#fff}
+
+@media(max-width:900px){.page-inner{padding-top:140px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ===== Spatial UI (Batch 1) ===== */
+body{background-color:var(--bg-primary);background-image:var(--sp-canvas);background-repeat:no-repeat;min-height:100vh}
+h1,h2,h3{text-wrap:balance}
+p{text-wrap:pretty}
+::selection{background:var(--sp-accent-fill);color:#fff}
+::-webkit-scrollbar-thumb{border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+
+/* Hero canvas keeps the grid motif, now over the ambient canvas */
+.soft-hero{background:radial-gradient(60% 55% at 50% -12%,var(--sp-glow),transparent 72%),linear-gradient(to right,var(--grid-line) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(to bottom,var(--grid-line) 1px,transparent 1px) 0 0/40px 40px}
+
+/* Elevation: surface (dense, near-opaque, no blur) */
+.card{background:color-mix(in srgb,var(--sp-glass-solid) 90%,transparent);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-md);box-shadow:var(--sp-edge-top),var(--sp-shadow-1)}
+
+/* Elevation: floating glass utilities (use only over something worth blurring) */
+.sp-glass,.sp-glass-raised{position:relative;background:var(--sp-glass);-webkit-backdrop-filter:var(--sp-blur);backdrop-filter:var(--sp-blur);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-md);box-shadow:var(--sp-edge-top),var(--sp-shadow-2)}
+.sp-glass-raised{background:var(--sp-glass-raised);box-shadow:var(--sp-edge-top),var(--sp-shadow-3)}
+.sp-solid{background:var(--sp-glass-solid);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-md);box-shadow:var(--sp-edge-top),var(--sp-shadow-1)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.sp-glass,.sp-glass-raised{background:var(--sp-glass-solid)}}
+@media(prefers-reduced-transparency:reduce){.sp-glass,.sp-glass-raised{background:var(--sp-glass-solid);-webkit-backdrop-filter:none;backdrop-filter:none}}
+
+.theme-toggle{background:var(--sp-glass-raised);border-color:var(--sp-edge);box-shadow:var(--sp-edge-top),var(--sp-shadow-1)}
+@media(max-width:900px){.theme-toggle{width:44px;height:44px}}

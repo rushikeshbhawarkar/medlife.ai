@@ -1,0 +1,4 @@
+/** PlansPage component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import SectionHeader from '../../components/SectionHeader/index.js';import Reveal from '../../components/Reveal/index.js';import PlanCard from '../../features/plans/PlanCard/index.js';import {plans} from '../../data/plans.js';export default function PlansPage({onSignIn}){return <section className="page-inner soft-hero"><div className="container"><SectionHeader eyebrow="Plans" title="Choose the plan that fits you" text="Start free and upgrade when you need more."/><div className="section-grid">{plans.map((plan,i)=><Reveal key={plan.name} delay={90*i}><PlanCard plan={plan} onSignIn={onSignIn}/></Reveal>)}</div></div></section>}

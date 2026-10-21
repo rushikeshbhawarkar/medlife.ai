@@ -1,0 +1,132 @@
+/**
+ * Footer component styles.
+ * Edit this file when changing the visual appearance of the footer.
+ */
+.site-footer {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-accent);
+  padding: 35px 0 24px;
+}
+
+.footer-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;/*general value 40px*/
+  padding-bottom: 10px;
+}
+
+.footer-tagline {
+  margin: 14px 0 18px;
+}
+
+.socials {
+  display: flex;
+  gap: 10px;
+}
+
+.socials a {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  color: var(--text-primary);
+  transition: border-color .2s, color .2s, background .2s;
+}
+
+.socials a:hover {
+  background: var(--red-light);
+  border-color: var(--red-primary);
+  color: var(--red-primary);
+}
+
+/* Logo sits on a themed surface here, so use the themed logo colours */
+.site-footer .logo-word,
+.site-footer .logo-word.logo-light {
+  color: var(--text-primary);
+}
+
+.site-footer .logo-word span,
+.site-footer .logo-word.logo-light span {
+  color: var(--red-primary);
+}
+
+.footer-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 12px 0px;
+  align-content: start;
+}
+
+.footer-links a:hover {
+  color: var(--red-primary);
+}
+
+.footer-bottom {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  /* EDIT FOOTER FONT SIZE HERE: change 11.2px to your preferred size. */
+  font-size: 11.2px;
+}
+
+.footer-bottom small {
+  max-width: 570px;
+  color: var(--text-muted);
+  font-size: inherit;
+}
+
+/* edit */
+
+/* EDIT FOOTER LINKS FONT SIZE HERE */
+.footer-links a {
+  font-size: 11.2px;
+}
+
+.footer-links a:hover {
+  color: var(--red-primary);
+}
+
+
+@media (max-width: 650px) {
+  .footer-main,
+  .footer-bottom {
+    flex-direction: column;
+  }
+
+  /* .footer-links {
+    gap: 10px 20px;
+    font-size: 11.2px;
+  } */
+
+  /* EDIT FOOTER LINKS FONT SIZE HERE */
+/* .footer-links a {
+  font-size: 11.2px;
+}
+
+.footer-links a:hover {
+  color: var(--red-primary);
+} */
+
+  .footer-bottom {
+    gap: 10px;
+  }
+}
+
+/* ===== Spatial UI: floating glass panel ===== */
+.site-footer{background:transparent;border-top:0;padding:24px 0 28px}
+.site-footer>.container{padding:30px 32px 18px;background:var(--sp-glass);-webkit-backdrop-filter:var(--sp-blur);backdrop-filter:var(--sp-blur);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-2)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.site-footer>.container{background:var(--sp-glass-solid)}}
+@media(prefers-reduced-transparency:reduce){.site-footer>.container{background:var(--sp-glass-solid);-webkit-backdrop-filter:none;backdrop-filter:none}}
+.site-footer .logo-word span,.site-footer .logo-word.logo-light span{color:var(--sp-accent-text)}
+.socials a{width:44px;height:44px;background:var(--sp-glass-raised);border-color:var(--sp-edge);box-shadow:var(--sp-edge-top)}
+.socials a:hover{color:var(--sp-accent-text);border-color:var(--red-primary)}
+.footer-links a{font-size:13px}
+.footer-links a:hover{color:var(--sp-accent-text)}
+.footer-links a{display:inline-flex;align-items:center;min-height:32px}
+.footer-bottom{font-size:12.5px;border-top-color:var(--sp-edge)}
+@media(max-width:650px){.site-footer>.container{padding:24px 20px 16px;border-radius:var(--sp-radius-md)}}

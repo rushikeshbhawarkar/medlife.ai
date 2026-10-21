@@ -1,0 +1,11 @@
+/** SectionHeader component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.section-header{max-width:760px;margin:0 auto 38px}
+.section-header.is-center{text-align:center}
+.section-header h2{font-size:clamp(2rem,4vw,2.8rem)}
+.section-header p{color:var(--text-secondary);font-size:1.04rem}
+.eyebrow{display:inline-flex;color:var(--red-primary);background:var(--red-light);border:1px solid var(--red-border);padding:5px 13px;border-radius:999px;font-size:.74rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+
+/* ===== Spatial UI ===== */
+.eyebrow{background:var(--sp-glass);border-color:var(--sp-edge);box-shadow:var(--sp-edge-top),var(--sp-shadow-1);color:var(--sp-accent-text);text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:700}

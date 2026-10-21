@@ -1,0 +1,3 @@
+# Convenience entry point: `pip install -r requirements.txt` installs the DEVELOPMENT set.
+# Production servers should use `pip install -r requirements/prod.txt`.
+-r requirements/dev.txt

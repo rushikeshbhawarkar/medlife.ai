@@ -1,0 +1,4 @@
+/** FeaturesPage component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import SectionHeader from '../../components/SectionHeader/index.js';import Reveal from '../../components/Reveal/index.js';import FeatureCard from '../../features/features/FeatureCard/index.js';import {features} from '../../data/features.js';export default function FeaturesPage(){return <section className="page-inner soft-hero"><div className="container"><SectionHeader eyebrow="Why medlife.ai" title="Features Highlights" text="Everything you need for quick, reliable and private health guidance, in one simple place."/><div className="section-grid">{features.map((item,i)=><Reveal key={item.title} delay={70*i}><FeatureCard item={item}/></Reveal>)}</div></div></section>}

@@ -1,0 +1,16 @@
+/** Logo component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.brand-logo{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:1.3rem;white-space:nowrap}
+.logo-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#ff1a3c,#9f1239);color:#fff;box-shadow:0 0 18px rgba(255,26,60,.45)}
+.logo-word{color:var(--text-primary)}
+.logo-word span{color:var(--red-primary)}
+.logo-word.logo-light{color:#fff}
+.logo-word.logo-light span{color:#ff4765}
+
+/* ===== Spatial UI ===== */
+.logo-mark{background:linear-gradient(145deg,var(--red-glow),var(--sp-accent-fill));border-radius:var(--sp-radius-sm);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 16px -4px color-mix(in srgb,var(--red-primary) 60%,transparent)}
+
+.logo-word span{color:var(--sp-accent-text)}
+/* logo-light sits on the always-black sidebar: lightened accent so it follows the palette and stays >= 4.5:1 */
+.logo-word.logo-light span{color:color-mix(in srgb,var(--red-primary) 62%,#fff)}

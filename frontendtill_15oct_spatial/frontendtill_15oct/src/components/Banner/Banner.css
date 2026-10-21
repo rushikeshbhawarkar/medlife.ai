@@ -1,0 +1,13 @@
+/** Banner component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:14px;padding:13px 16px;margin:14px 0;font-size:.9rem;border:1px solid transparent}
+.banner-info{background:var(--red-light);border-color:var(--red-border);color:var(--text-secondary)}
+.banner-info b{color:var(--red-primary)}
+.banner-error{background:var(--danger-light);border-color:var(--red-border);color:var(--danger)}
+
+/* ===== Spatial UI: floating pill ===== */
+.banner{border-radius:22px;box-shadow:var(--sp-edge-top),var(--sp-shadow-1)}
+.banner-info{background:color-mix(in srgb,var(--red-primary) 10%,var(--sp-glass-solid));border-color:var(--red-border)}
+.banner-info b{color:var(--sp-accent-text)}
+.banner-error{background:color-mix(in srgb,var(--danger) 12%,var(--sp-glass-solid));color:var(--sp-danger-text)}

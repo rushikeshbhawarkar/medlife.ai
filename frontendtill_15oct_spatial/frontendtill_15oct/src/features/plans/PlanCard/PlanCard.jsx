@@ -1,0 +1,4 @@
+/** PlanCard component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import * as Icons from 'lucide-react';import {Check} from 'lucide-react';import Button from '../../../components/Button/index.js';import './PlanCard.css';export default function PlanCard({plan,onSignIn}){const I=Icons[plan.icon]||Icons.Sparkles;return <article className={`plan-card ${plan.featured?'plan-featured':''}`}>{plan.featured&&<span className="popular-badge">Most popular</span>}<span className="plan-icon"><I size={24}/></span><h3>{plan.name}</h3><p>{plan.tagline}</p><ul>{plan.perks.map(x=><li key={x}><Check size={17}/>{x}</li>)}</ul><Button block variant={plan.featured?'primary':'outline'} disabled={plan.disabled} onClick={plan.name==='Free Trial'?onSignIn:undefined}>{plan.button}</Button></article>}

@@ -1,0 +1,75 @@
+/** SignInModal component styles.
+ * Edit this file when changing the visual appearance of this component.
+ 
+.signin-form label{display:block;font-weight:700;font-size:.88rem;margin-bottom:8px}
+.signin-form .password-label{margin-top:14px}
+.email-input{display:flex;align-items:center;gap:10px;border:1px solid var(--slate-300);border-radius:13px;padding:0 13px;margin-bottom:8px;color:var(--slate-500)}
+.email-input:focus-within{border-color:var(--teal-500)}
+.email-input input{width:100%;min-width:0;padding:13px 0;border:0;outline:none;color:var(--navy-900);background:transparent}
+.password-toggle{display:flex;align-items:center;justify-content:center;flex:none;padding:4px;border:0;border-radius:8px;background:transparent;color:var(--slate-500);cursor:pointer}
+.password-toggle:hover{color:var(--navy-900)}
+.password-toggle:focus-visible{outline:2px solid var(--teal-500);outline-offset:2px}
+.field-error{color:#c0334d;font-size:.82rem;margin:5px 0 12px}
+.secure-note{display:flex;gap:8px;align-items:center;justify-content:center;color:var(--slate-500);font-size:.78rem;margin:18px 0 0}
+.secure-note svg{color:var(--teal-600);flex:none}
+
+
+*/
+
+
+
+
+
+/** Modern sign-in form styles. Uses the site's shared theme tokens. */
+.signin-form{display:flex;flex-direction:column;gap:8px}
+.signin-form>label{display:block;margin:5px 0 0;color:var(--text-primary);font-size:.86rem;font-weight:700}
+.email-input{display:flex;align-items:center;gap:10px;min-height:48px;border:1px solid var(--border-strong);border-radius:12px;padding:0 14px;margin:0 0 8px;background:var(--bg-secondary);color:var(--text-secondary);transition:border-color .2s,box-shadow .2s,background .2s}
+.email-input:focus-within{border-color:var(--red-primary);box-shadow:0 0 0 3px var(--red-light)}
+.email-input input{width:100%;min-width:0;padding:12px 0;border:0;outline:none;color:var(--text-primary);background:transparent;font-size:.94rem}
+.email-input input::placeholder{color:var(--text-muted)}
+.signin-form .button-primary{min-height:46px;margin:8px 0 4px;border-radius:12px;box-shadow:0 8px 18px var(--glow-accent)}
+.signin-form [role="status"]{padding:11px 13px;border-radius:10px;background:var(--red-light);color:var(--text-primary);font-size:.85rem;overflow-wrap:anywhere}
+.field-error{padding:10px 12px;border-radius:10px;background:var(--danger-light);color:var(--danger);font-size:.84rem;margin:4px 0 8px}
+.signin-form .text-button{border:0;background:transparent;color:var(--red-primary);font-size:.84rem;font-weight:700;padding:6px 2px;cursor:pointer}
+.signin-form .text-button:hover{text-decoration:underline}
+.signin-form code{display:block;overflow-wrap:anywhere;padding:10px;background:var(--bg-tertiary);border-radius:8px;color:var(--text-primary)}
+.signin-form img{border:1px solid var(--border-subtle);border-radius:12px;padding:8px;background:#fff}
+@media(max-width:520px){.signin-form{gap:6px}.email-input{min-height:46px}.signin-form .button-primary{min-height:44px}}
+
+
+/* ===== Spatial UI: glass inputs, accent focus glow ===== */
+.email-input{background:color-mix(in srgb,var(--text-primary) 6%,transparent);border:1px solid color-mix(in srgb,var(--text-secondary) 70%,transparent);border-radius:var(--sp-radius-sm);box-shadow:inset 0 1px 2px color-mix(in srgb,#000 14%,transparent)}
+.email-input:focus-within{border-color:var(--red-primary);box-shadow:0 0 0 4px color-mix(in srgb,var(--red-primary) 28%,transparent)}
+.signin-form .button-primary{display:inline-flex;align-items:center;justify-content:center;width:100%;margin:8px 0 4px;border:1px solid rgba(255,255,255,.28);border-radius:var(--sp-radius-pill);color:#fff;font-weight:700;background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 22px -8px color-mix(in srgb,var(--red-primary) 65%,transparent),var(--sp-shadow-1);transition:transform .25s var(--sp-ease),box-shadow .25s var(--sp-ease)}
+@media(hover:hover){.signin-form .button-primary:hover:not(:disabled){transform:translateY(-2px)}}
+.signin-form .button-primary:active:not(:disabled){transform:scale(.98)}
+.signin-form [role="status"]{background:color-mix(in srgb,var(--red-primary) 12%,var(--sp-glass-solid));border:1px solid var(--red-border)}
+.field-error{background:color-mix(in srgb,var(--danger) 12%,var(--sp-glass-solid));color:var(--sp-danger-text);border-radius:var(--sp-radius-sm)}
+.signin-form .text-button{color:var(--sp-accent-text);min-height:44px;padding:6px 8px}
+.signin-form code{background:color-mix(in srgb,var(--text-primary) 7%,transparent);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-sm)}
+.secure-note svg{color:var(--sp-accent-text)}
+/* QR stays scannable: always on a light plate, replaces the former static inline style */
+.signin-form .qr-plate{display:block;max-width:220px;width:100%;margin:12px auto;padding:12px;background:#fff;border:1px solid var(--sp-edge);border-radius:var(--sp-radius-md);box-shadow:var(--sp-shadow-1)}
+.signin-form .signin-links{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.signin-divider{display:flex;align-items:center;gap:12px;margin:10px 0;color:var(--text-muted);font-size:.78rem;font-weight:600;text-transform:uppercase}
+.signin-divider::before,.signin-divider::after{content:'';flex:1;height:1px;background:var(--sp-edge, rgba(255,255,255,.12))}
+.google-signin-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:46px;padding:0 16px;border:1px solid var(--border-strong, rgba(255,255,255,.2));border-radius:var(--sp-radius-pill, 999px);background:var(--bg-secondary, rgba(255,255,255,.05));color:var(--text-primary);font-size:.88rem;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.google-signin-btn:hover:not(:disabled){background:color-mix(in srgb,var(--text-primary) 8%,transparent);border-color:var(--text-secondary);transform:translateY(-1px)}
+.google-signin-btn:active:not(:disabled){transform:scale(.98)}
+.google-signin-container{display:flex;justify-content:center;width:100%;min-height:44px;margin:2px 0}
+.google-btn-wrapper{display:flex;justify-content:center;width:100%}
+
+/* ===== Reset-password page (same system; replaces former static inline styles) ===== */
+.reset-page{max-width:480px;margin:60px auto;padding:32px;background:color-mix(in srgb,var(--sp-glass-solid) 94%,transparent);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-3)}
+.reset-page h1{font-size:1.8rem}
+.reset-page label{display:block;font-size:.88rem;font-weight:700}
+.reset-input{display:block;width:100%;padding:12px 14px;margin:8px 0 16px;border:1px solid color-mix(in srgb,var(--text-secondary) 70%,transparent);border-radius:var(--sp-radius-sm);background:color-mix(in srgb,var(--text-primary) 6%,transparent);color:var(--text-primary);box-shadow:inset 0 1px 2px color-mix(in srgb,#000 14%,transparent);transition:border-color .2s,box-shadow .2s}
+.reset-input:focus{border-color:var(--red-primary);box-shadow:0 0 0 4px color-mix(in srgb,var(--red-primary) 28%,transparent)}
+.reset-success{color:var(--sp-ok-text);font-weight:600}
+.reset-error{color:var(--sp-danger-text);font-weight:600}
+@media(max-width:520px){.reset-page{margin:24px 14px;padding:24px 20px;border-radius:var(--sp-radius-md)}}
+
+/* Doctor Application Entry Link */
+.signin-links .doctor-apply-link{color:var(--emerald, #10b981) !important;font-weight:700}
+.signin-links .doctor-apply-link:hover{color:#34d399 !important;text-decoration:underline}
+

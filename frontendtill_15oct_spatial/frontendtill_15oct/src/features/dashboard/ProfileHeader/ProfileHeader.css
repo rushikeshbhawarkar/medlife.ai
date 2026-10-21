@@ -1,0 +1,13 @@
+/** ProfileHeader component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.profile-header{display:flex;align-items:center;gap:17px;flex-wrap:wrap}
+.profile-title{flex:1;min-width:150px}
+.profile-title h2{font-size:1.65rem;margin-bottom:5px}
+.profile-title p{color:var(--text-secondary);margin:0;font-size:.88rem}
+.profile-actions{display:flex;gap:8px}
+@media(max-width:560px){.profile-actions{width:100%;padding-left:80px}}
+
+/* ===== Spatial UI: floating pane ===== */
+.profile-header{padding:18px 22px;background:color-mix(in srgb,var(--sp-glass-solid) 88%,transparent);border:1px solid var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-1)}
+@media(max-width:560px){.profile-header{padding:16px}}

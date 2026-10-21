@@ -1,0 +1,4 @@
+/** MessageBubble component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import {HeartPulse,UserRound} from 'lucide-react';import RichText from '../../../components/RichText/index.js';import {formatTime} from '../../../utils/format.js';import './MessageBubble.css';export default function MessageBubble({message}){const user=message.role==='user';const Icon=user?UserRound:HeartPulse;return <div className={`message-row ${user?'message-user':'message-ai'}`}><span className="message-avatar"><Icon size={17}/></span><div className="message-content"><div className="message-bubble">{user?message.text:<RichText text={message.text}/>}</div><time>{formatTime(message.ts)}</time></div></div>}

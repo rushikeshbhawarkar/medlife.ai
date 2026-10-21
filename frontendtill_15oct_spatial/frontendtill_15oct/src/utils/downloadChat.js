@@ -1,0 +1,5 @@
+/** Exports a conversation to a plain-text file.
+ * Edit this file when changing the chat export format or filename.
+ */
+import {fullName} from './person.js';
+export function downloadChat(member,messages){const name=fullName(member);const stamp=new Date().toLocaleString();const content=[`medlife.ai chat - ${name}`,`Exported: ${stamp}`,'',...messages.map(m=>`[${m.role==='user'?'You':'medlife.ai'}] ${m.text}`),'---','This chat contains general health information and is not a substitute for professional medical advice.'].join('\n');const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`medlife-chat-${name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}.txt`;a.click();URL.revokeObjectURL(url)}

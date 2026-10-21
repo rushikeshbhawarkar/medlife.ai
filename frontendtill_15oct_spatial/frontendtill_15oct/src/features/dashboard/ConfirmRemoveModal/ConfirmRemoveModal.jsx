@@ -1,0 +1,4 @@
+/** ConfirmRemoveModal component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import {Trash2} from 'lucide-react';import Modal from '../../../components/Modal/index.js';import Button from '../../../components/Button/index.js';import {fullName} from '../../../utils/person.js';export default function ConfirmRemoveModal({member,onClose,onConfirm}){return <Modal title="Remove this profile?" subtitle={`${fullName(member)}'s details will be deleted. This cannot be undone.`} onClose={onClose}><div className="confirm-actions"><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="danger-solid" onClick={onConfirm}><Trash2 size={17}/> Remove</Button></div><style>{`.confirm-actions{display:flex;justify-content:flex-end;gap:10px}`}</style></Modal>}

@@ -1,0 +1,18 @@
+# Purpose: Runtime dependencies shared by development and production.
+# Add a package here when backend code imports it.
+# Tested with: Django 5.2.18, djangorestframework 3.18.3, django-cors-headers 4.9.0,
+#              psycopg 3.3.6, requests 2.34.2, python-dotenv 1.2.4  (Python 3.12 - 3.14)
+Django>=5.2.8,<5.3
+djangorestframework>=3.16,<4
+django-cors-headers>=4.7,<5
+psycopg[binary]>=3.2.10,<4
+requests>=2.32,<3
+python-dotenv>=1.0,<2
+
+Pillow>=11,<13
+pytesseract>=0.3.13,<0.4
+
+pyotp>=2.9,<3
+qrcode[pil]>=8.0,<9
+cryptography>=44,<47
+google-auth>=2.40,<3

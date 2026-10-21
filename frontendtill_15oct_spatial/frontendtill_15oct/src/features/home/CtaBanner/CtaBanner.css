@@ -1,0 +1,11 @@
+/** CtaBanner component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.cta-section{padding:20px 0 82px}
+.cta-banner{border-radius:28px;padding:56px 26px;text-align:center;color:#fff;background:radial-gradient(circle at 85% 0%,rgba(255,255,255,.14),transparent 40%),linear-gradient(135deg,#ff1a3c 0%,#9f1239 55%,#2a050c 100%);border:1px solid var(--border-accent);box-shadow:var(--shadow-glow),var(--shadow-lg)}
+.cta-banner h2{font-size:clamp(1.8rem,4vw,2.6rem);max-width:720px;margin:0 auto 14px}
+.cta-banner p{color:rgba(255,255,255,.85);margin-bottom:24px}
+
+/* ===== Spatial UI: glowing glass slab (white text stays >= 4.5:1 on every stop) ===== */
+.cta-banner{position:relative;border-radius:var(--sp-radius-lg);background:radial-gradient(circle at 85% 0%,rgba(255,255,255,.14),transparent 42%),linear-gradient(145deg,color-mix(in srgb,var(--red-primary) 70%,#000) 0%,color-mix(in srgb,var(--red-primary) 38%,#000) 100%);border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),var(--sp-shadow-3),0 30px 90px -20px var(--sp-glow)}
+.cta-banner p{color:rgba(255,255,255,.92)}

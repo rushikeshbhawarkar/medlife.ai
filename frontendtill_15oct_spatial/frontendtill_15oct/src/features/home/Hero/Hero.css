@@ -1,0 +1,24 @@
+/** Hero component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.hero{margin-top:-72px;padding:150px 0 90px;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;align-items:center;gap:35px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:999px;color:var(--red-primary);font-size:.76rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:22px}
+.hero h1{font-size:clamp(2.6rem,5vw,4.4rem);line-height:1.08;margin-bottom:22px}
+.hero h1 em{font-style:normal;color:var(--red-primary);text-shadow:0 0 24px rgba(255,26,60,.4)}
+.hero-lead{max-width:560px;font-size:1.08rem;font-weight:500;color:var(--text-secondary);margin-bottom:26px}
+.hero-cta{display:inline-flex;max-width:100%}
+.hero-cta .btn{white-space:normal;text-align:left}
+.trust-list{display:flex;flex-wrap:wrap;gap:15px;margin-top:26px;color:var(--text-muted);font-size:.8rem}
+.trust-list span{display:flex;align-items:center;gap:6px}
+.trust-list svg{width:16px;height:16px;color:var(--red-primary)}
+@media(max-width:900px){.hero{padding:130px 0 65px}.hero-grid{grid-template-columns:1fr}.hero-copy{text-align:center}.hero-lead{margin-inline:auto}.trust-list{justify-content:center}.hero-grid>div:last-child{max-width:570px;width:100%;margin:auto}}
+
+/* ===== Spatial UI ===== */
+.hero-eyebrow{background:var(--sp-glass);border:1px solid var(--sp-edge);box-shadow:var(--sp-edge-top),var(--sp-shadow-1);color:var(--text-primary);text-transform:none;letter-spacing:0;font-size:.84rem;font-weight:700}
+.hero-eyebrow svg{color:var(--red-primary)}
+.hero h1 em{text-shadow:0 0 28px var(--sp-glow)}
+.trust-list{color:var(--text-secondary)}
+
+.hero h1 em{color:var(--sp-accent-text)}
+.hero-eyebrow svg,.trust-list svg{color:var(--sp-accent-text)}

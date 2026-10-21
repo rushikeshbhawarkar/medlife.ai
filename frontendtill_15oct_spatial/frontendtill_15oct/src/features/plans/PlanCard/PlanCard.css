@@ -1,0 +1,23 @@
+/** PlanCard component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.plan-card{position:relative;display:flex;flex-direction:column;padding:30px 26px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:24px;box-shadow:var(--shadow-sm);transition:border-color .25s,transform .25s}
+.plan-card:hover{border-color:var(--border-accent)}
+.plan-featured{border:2px solid var(--red-primary);background:var(--bg-secondary);box-shadow:var(--shadow-glow);transform:translateY(-7px)}
+.plan-featured:hover{border-color:var(--red-primary)}
+.popular-badge{position:absolute;right:18px;top:-13px;background:var(--red-primary);color:#fff;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:5px 12px;border-radius:999px;box-shadow:0 2px 12px rgba(255,26,60,.45)}
+.plan-icon{width:52px;height:52px;display:grid;place-items:center;background:var(--red-light);border:1px solid var(--border-accent);color:var(--red-primary);border-radius:14px;margin-bottom:20px}
+.plan-card h3{font-family:var(--font-body);font-size:1.25rem;letter-spacing:-.02em;margin-bottom:6px}
+.plan-card>p{color:var(--text-secondary);min-height:44px}
+.plan-card ul{list-style:none;padding:0;margin:12px 0 28px;display:grid;gap:13px;flex:1}
+.plan-card li{display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--text-secondary)}
+.plan-card li svg{color:var(--red-primary);flex:none}
+
+/* ===== Spatial UI: the featured tier floats higher with an accent aura ===== */
+.plan-card{background:color-mix(in srgb,var(--sp-glass-solid) 90%,transparent);border-color:var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-1);transition:transform .35s var(--sp-ease),border-color .25s,box-shadow .35s var(--sp-ease)}
+@media(hover:hover){.plan-card:hover{transform:translateY(-3px) scale(1.01);border-color:var(--border-accent);box-shadow:var(--sp-edge-top),var(--sp-shadow-2)}}
+.plan-featured{border:1px solid color-mix(in srgb,var(--red-primary) 70%,transparent);background:var(--sp-glass-solid);box-shadow:var(--sp-edge-top),var(--sp-shadow-3),0 0 0 4px color-mix(in srgb,var(--red-primary) 12%,transparent),0 24px 70px -18px var(--sp-glow);transform:translateY(-7px)}
+@media(hover:hover){.plan-featured:hover{transform:translateY(-10px) scale(1.01);border-color:var(--red-primary)}}
+.popular-badge{background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 12px -2px color-mix(in srgb,var(--red-primary) 55%,transparent)}
+.plan-icon{background:color-mix(in srgb,var(--red-primary) 14%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.25);color:var(--sp-accent-text)}
+.plan-card li svg{color:var(--sp-accent-text)}

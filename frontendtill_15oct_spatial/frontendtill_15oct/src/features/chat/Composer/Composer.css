@@ -1,0 +1,23 @@
+/** Composer component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.composer-wrap{border-top:1px solid var(--border-subtle);padding:15px 20px 13px}
+.composer{display:flex;align-items:flex-end;gap:10px;border:1px solid var(--border-subtle);border-radius:18px;padding:8px 9px 8px 14px;background:var(--bg-tertiary);transition:border-color .2s,box-shadow .2s}
+.composer:focus-within{border-color:var(--red-primary);box-shadow:0 0 0 3px var(--red-light)}
+.composer textarea{resize:vertical;max-height:140px;min-height:38px;flex:1;min-width:0;border:0;outline:none;padding:8px 0;background:transparent;color:var(--text-primary)}
+.composer textarea::placeholder{color:var(--text-muted)}
+.composer button{width:40px;height:40px;border:0;border-radius:50%;background:linear-gradient(135deg,#ff1a3c,#be123c);box-shadow:0 4px 14px rgba(255,26,60,.4);color:#fff;display:grid;place-items:center;flex:none;transition:transform .2s,box-shadow .2s}
+.composer button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(255,26,60,.55)}
+.composer button:disabled{opacity:.4;box-shadow:none}
+.composer-wrap>p{font-size:.7rem;color:var(--text-muted);text-align:center;margin:10px 0 0}
+@media(max-width:600px){.composer-wrap{padding:12px}}
+
+/* ===== Spatial UI: floating composer pill ===== */
+.composer-wrap{border-top-color:var(--sp-edge)}
+.composer{border:1px solid color-mix(in srgb,var(--text-secondary) 70%,transparent);border-radius:26px;background:var(--sp-glass-raised);box-shadow:var(--sp-edge-top),var(--sp-shadow-1)}
+.composer:focus-within{border-color:var(--red-primary);box-shadow:var(--sp-edge-top),0 0 0 4px color-mix(in srgb,var(--red-primary) 28%,transparent)}
+.composer button{background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 6px 14px -4px color-mix(in srgb,var(--red-primary) 60%,transparent);transition:transform .25s var(--sp-ease),box-shadow .25s var(--sp-ease)}
+.composer button:hover:not(:disabled){transform:none}
+@media(hover:hover){.composer button:hover:not(:disabled){transform:translateY(-2px)}}
+.composer button:active:not(:disabled){transform:scale(.94)}
+@media(max-width:600px){.composer button{width:44px;height:44px}}

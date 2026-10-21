@@ -1,0 +1,4 @@
+/** FaqPage component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import {useState} from 'react';import SectionHeader from '../../components/SectionHeader/index.js';import FaqItem from '../../features/faq/FaqItem/index.js';import {faqs} from '../../data/faqs.js';import './FaqPage.css';export default function FaqPage(){const [open,setOpen]=useState(0);return <section className="page-inner soft-hero"><div className="faq-container"><SectionHeader eyebrow="Good to know" title="Frequently asked questions"/><div className="faq-list">{faqs.map((item,i)=><FaqItem key={item.q} item={item} open={open===i} onClick={()=>setOpen(open===i?-1:i)}/>)}</div></div></section>}

@@ -1,0 +1,43 @@
+/* Palette-specific overrides for accents that were previously hard-coded red. */
+:root[data-palette="green"] .btn-primary {
+  background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));
+}
+:root[data-palette="green"] .signin-form .button-primary {
+  background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));
+}
+:root[data-palette="green"] .btn-primary:hover:not(:disabled) {
+  background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));
+}
+:root[data-palette="green"] .signin-form .button-primary:hover:not(:disabled) {
+  background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));
+}
+:root[data-palette="green"] .logo-mark,
+:root[data-palette="green"] .preview-avatar,
+:root[data-palette="green"] .account-initial,
+:root[data-palette="green"] .step-number {
+  background:linear-gradient(145deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 16px -4px color-mix(in srgb,var(--red-primary) 60%,transparent);
+}
+:root[data-palette="green"] .blob-a {background:#16835d}
+:root[data-palette="green"] .preview-input button,
+:root[data-palette="green"] .message-user .message-bubble,
+:root[data-palette="green"] .composer button {
+  background:linear-gradient(180deg,color-mix(in srgb,var(--red-primary) 84%,#000),var(--sp-accent-fill));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 12px -2px color-mix(in srgb,var(--red-primary) 55%,transparent);
+}
+:root[data-palette="green"] .cta-banner {
+  background:radial-gradient(circle at 85% 0%,rgba(255,255,255,.14),transparent 42%),linear-gradient(145deg,color-mix(in srgb,var(--red-primary) 70%,#000) 0%,color-mix(in srgb,var(--red-primary) 38%,#000) 100%);
+}
+:root[data-palette="green"] .dashboard-sidebar {
+  background:radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--red-primary) 28%,transparent),transparent 40%),var(--side-bg);
+}
+:root[data-palette="green"] .sidebar-label b,
+:root[data-palette="green"] .member-selected,
+:root[data-palette="green"] .member-selected:hover {
+  background:color-mix(in srgb,var(--red-primary) 22%,transparent);
+  border-color:color-mix(in srgb,var(--red-primary) 62%,transparent);
+}
+:root[data-palette="green"] .btn-sidebar-add {border-color:rgba(38,168,117,.55)}
+:root[data-palette="green"] .btn-sidebar-add:hover:not(:disabled) {background:rgba(22,131,93,.16);border-color:#26a875}
+:root[data-palette="green"] .signout-btn:hover {color:#26a875}
+:root[data-palette="green"] .scanner-error {color:var(--sp-danger-text)}

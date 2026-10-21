@@ -1,0 +1,8 @@
+/** FaqPage component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.faq-container{width:min(780px,calc(100% - 40px));margin:auto}
+.faq-list{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:20px;padding:0 24px;box-shadow:var(--shadow-md)}
+
+/* ===== Spatial UI: dense answers sit on a near-opaque pane ===== */
+.faq-list{background:color-mix(in srgb,var(--sp-glass-solid) 92%,transparent);border-color:var(--sp-edge);border-radius:var(--sp-radius-lg);box-shadow:var(--sp-edge-top),var(--sp-shadow-2)}

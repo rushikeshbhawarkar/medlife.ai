@@ -1,0 +1,6 @@
+/** Reveal component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}.reveal-visible{opacity:1;transform:translateY(0)}@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+/* ===== Spatial UI ===== */
+.reveal{transition:opacity .7s var(--sp-ease),transform .7s var(--sp-ease)}

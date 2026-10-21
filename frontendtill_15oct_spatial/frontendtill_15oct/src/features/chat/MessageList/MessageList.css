@@ -1,0 +1,6 @@
+/** MessageList component styles.
+ * Edit this file when changing the visual appearance of this component.
+ */
+.message-list{padding:12px 22px;overflow:auto;max-height:480px;min-height:270px;scroll-behavior:smooth}@media(max-width:600px){.message-list{padding:10px 13px}.message-row{max-width:98%}}
+/* ===== Spatial UI: scroll container stays a plain, cheap layer ===== */
+.message-list{scrollbar-gutter:stable}

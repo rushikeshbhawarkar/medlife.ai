@@ -1,0 +1,3 @@
+# Purpose: Dependencies for local development and test execution.
+# Add development-only tools here.
+-r base.txt

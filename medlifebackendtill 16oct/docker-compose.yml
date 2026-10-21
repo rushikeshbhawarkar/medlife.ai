@@ -1,0 +1,24 @@
+# Purpose: Optional local PostgreSQL service; it does not containerize Django or the frontend.
+# Edit credentials/ports here only in coordination with backend/.env (this file reads the same .env).
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medlife}
+      POSTGRES_USER: ${POSTGRES_USER:-medlife_user}
+      # No fallback on purpose: a forgotten password should stop here, not create a weak database.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
+    ports:
+      # host port = POSTGRES_PORT from .env (5433 in your .env); container port is always 5432.
+      # Bound to 127.0.0.1 so the database is not reachable from other machines on the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - medlife_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medlife_user} -d ${POSTGRES_DB:-medlife}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  medlife_postgres_data:

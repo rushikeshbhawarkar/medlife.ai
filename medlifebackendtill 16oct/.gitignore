@@ -1,0 +1,13 @@
+# Purpose: Files that must not be committed, including secrets and local Python artifacts.
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+staticfiles/

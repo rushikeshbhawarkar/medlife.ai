@@ -1,0 +1,4 @@
+/** ProfileHeader component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import {Pencil,Trash2} from 'lucide-react';import Avatar from '../../../components/Avatar/index.js';import Button from '../../../components/Button/index.js';import {fullName,ageFromDob} from '../../../utils/person.js';import './ProfileHeader.css';export default function ProfileHeader({member,index,onEdit,onRemove}){const age=ageFromDob(member.dob),sub=[member.gender,age!==null?`${age} years`:null,member.race].filter(Boolean).join(' · ');return <div className="profile-header"><Avatar member={member} index={index} size={64}/><div className="profile-title"><h2>{fullName(member)}</h2><p>{sub||'No details added yet'}</p></div><div className="profile-actions"><Button variant="ghost" size="sm" onClick={onEdit}><Pencil size={16}/> Edit</Button><Button variant="danger" size="sm" onClick={onRemove}><Trash2 size={16}/> Remove</Button></div></div>}

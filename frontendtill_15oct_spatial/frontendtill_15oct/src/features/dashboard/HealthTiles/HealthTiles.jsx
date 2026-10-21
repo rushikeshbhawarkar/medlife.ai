@@ -1,0 +1,4 @@
+/** HealthTiles component.
+ * Edit this file when changing this component behavior or markup.
+ */
+import {Droplet,Activity,Scale,Ruler,CalendarDays} from 'lucide-react';import HealthTile from '../HealthTile/index.js';import {classifyA1c,classifyBp} from '../../../utils/health.js';import './HealthTiles.css';export default function HealthTiles({member}){return <div className="health-tiles" aria-label="Health summary"><HealthTile icon={Droplet} label="A1C" value={member.a1c?`${member.a1c}%`:''} status={classifyA1c(member.a1c)}/><HealthTile icon={Activity} label="Blood pressure" value={member.bloodPressure} status={classifyBp(member.bloodPressure)}/><HealthTile icon={Scale} label="Weight" value={member.weight}/><HealthTile icon={Ruler} label="Height" value={member.height}/><HealthTile icon={CalendarDays} label="Date of birth" value={member.dob}/></div>}

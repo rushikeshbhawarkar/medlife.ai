@@ -1,0 +1,177 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+/* ==========================================================
+   RED & BLACK THEME
+   Dark mode is the default. Light mode is switched on by
+   <html data-theme="light"> (set by the toggle button in the
+   navbar / dashboard top bar and remembered in localStorage).
+   To change a colour for the whole site, edit it here.
+   ========================================================== */
+
+/* ---------- Dark mode (default) ---------- */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-primary: #07080b;
+  --bg-secondary: #0d0f14;
+  --bg-tertiary: #13161f;
+  --bg-card: rgba(13, 15, 21, 0.88);
+  --bg-card-hover: rgba(20, 23, 32, 0.98);
+  --bg-modal: #0d0f14;
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 26, 60, 0.3);
+  --border-accent: rgba(255, 26, 60, 0.45);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #8493aa; /* was #64748b: 4.2:1 on canvas, below AA */
+
+  --red-primary: #ff1a3c;
+  --red-hover: #e11d48;
+  --red-glow: #ff3352;
+  --red-light: rgba(255, 26, 60, 0.12);
+  --red-border: rgba(255, 26, 60, 0.4);
+
+  --danger: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.16);
+  --warning: #fbbf24;
+  --warning-light: rgba(251, 191, 36, 0.14);
+  --emerald: #34d399;
+  --emerald-light: rgba(52, 211, 153, 0.14);
+
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.7);
+  --shadow-md: 0 8px 26px rgba(0, 0, 0, 0.75), 0 0 16px rgba(255, 26, 60, 0.12);
+  --shadow-lg: 0 18px 46px rgba(0, 0, 0, 0.85), 0 0 30px rgba(255, 26, 60, 0.2);
+  --shadow-glow: 0 0 32px rgba(255, 26, 60, 0.35);
+  --glow-accent: rgba(255, 26, 60, 0.12);
+  --grid-line: rgba(255, 26, 60, 0.04);
+  --navbar-bg: rgba(7, 8, 11, 0.92);
+  --overlay: rgba(4, 5, 8, 0.88);
+}
+
+/* ---------- Light mode ---------- */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-primary: #fafafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f8;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-card-hover: #ffffff;
+  --bg-modal: #ffffff;
+  --border-subtle: #e5e7eb;
+  --border-strong: #d1d5db;
+  --border-accent: rgba(225, 29, 72, 0.35);
+
+  --text-primary: #0a0b0e;
+  --text-secondary: #374151;
+  --text-muted: #5b6472; /* was #6b7280: ~4.4:1 on tinted glass, below AA */
+
+  --red-primary: #e11d48;
+  --red-hover: #be123c;
+  --red-glow: #ff1a3c;
+  --red-light: rgba(225, 29, 72, 0.08);
+  --red-border: rgba(225, 29, 72, 0.3);
+
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --warning: #b45309;
+  --warning-light: #fef3c7;
+  --emerald: #059669;
+  --emerald-light: #d1fae5;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 20px -2px rgba(10, 11, 14, 0.08), 0 2px 6px -1px rgba(225, 29, 72, 0.06);
+  --shadow-lg: 0 14px 34px -4px rgba(10, 11, 14, 0.12), 0 4px 14px -2px rgba(225, 29, 72, 0.1);
+  --shadow-glow: 0 0 26px rgba(225, 29, 72, 0.3);
+  --glow-accent: rgba(225, 29, 72, 0.12);
+  --grid-line: rgba(225, 29, 72, 0.05);
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  --overlay: rgba(4, 5, 8, 0.7);
+}
+
+/* ---------- Same in both modes ---------- */
+:root {
+  --radius: 20px;
+  --side-bg: #0a0b0e; /* dashboard sidebar is always black */
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Optional medical-green accent palette. Selectable in the member dashboard. */
+:root[data-palette='green'] {
+  --red-primary: #16835d;
+  --red-hover: #116b4b;
+  --red-glow: #26a875;
+  --red-light: rgba(22, 131, 93, 0.14);
+  --red-border: rgba(22, 131, 93, 0.42);
+  --border-strong: rgba(22, 131, 93, 0.30);
+  --border-accent: rgba(22, 131, 93, 0.45);
+  --glow-accent: rgba(22, 131, 93, 0.12);
+  --grid-line: rgba(22, 131, 93, 0.04);
+}
+
+/* ==========================================================
+   SPATIAL UI TOKENS (all colors derive from the accent token
+   --red-primary, so data-palette="green" tints them green)
+   ========================================================== */
+:root,
+[data-theme='dark'] {
+  --sp-glass: rgba(26, 30, 44, 0.56);
+  --sp-glass-raised: rgba(40, 45, 63, 0.68);
+  --sp-glass-solid: #161a26;
+  --sp-edge: rgba(255, 255, 255, 0.14);
+  --sp-edge-top: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --sp-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 18px -8px rgba(0, 0, 0, 0.55);
+  --sp-shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 32px -12px rgba(0, 0, 0, 0.65);
+  --sp-shadow-3: 0 4px 8px rgba(0, 0, 0, 0.35), 0 32px 64px -18px rgba(0, 0, 0, 0.75);
+  --sp-glow: color-mix(in srgb, var(--red-primary) 28%, transparent);
+  --sp-canvas:
+    radial-gradient(1100px 640px at 12% -8%, color-mix(in srgb, var(--red-primary) 20%, transparent), transparent 62%),
+    radial-gradient(900px 600px at 96% 4%, rgba(88, 101, 242, 0.16), transparent 60%),
+    radial-gradient(1000px 700px at 50% 108%, color-mix(in srgb, var(--red-primary) 10%, transparent), transparent 65%),
+    linear-gradient(180deg, #0b0d16 0%, #07080b 100%);
+}
+
+[data-theme='light'] {
+  --sp-glass: rgba(255, 255, 255, 0.62);
+  --sp-glass-raised: rgba(255, 255, 255, 0.8);
+  --sp-glass-solid: #ffffff;
+  --sp-edge: rgba(10, 11, 14, 0.1);
+  --sp-edge-top: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --sp-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 18px -8px rgba(15, 23, 42, 0.12);
+  --sp-shadow-2: 0 2px 4px rgba(15, 23, 42, 0.06), 0 16px 32px -12px rgba(15, 23, 42, 0.18);
+  --sp-shadow-3: 0 4px 8px rgba(15, 23, 42, 0.06), 0 32px 64px -18px rgba(15, 23, 42, 0.26);
+  --sp-glow: color-mix(in srgb, var(--red-primary) 18%, transparent);
+  --sp-canvas:
+    radial-gradient(1000px 600px at 10% -10%, color-mix(in srgb, var(--red-primary) 12%, transparent), transparent 62%),
+    radial-gradient(900px 600px at 94% 4%, rgba(99, 102, 241, 0.1), transparent 60%),
+    linear-gradient(180deg, #f2f4fa 0%, #fafafc 100%);
+}
+
+:root {
+  --sp-blur: blur(24px) saturate(160%);
+  --sp-blur-heavy: blur(36px) saturate(180%);
+  --sp-radius-sm: 14px;
+  --sp-radius-md: 20px;
+  --sp-radius-lg: 28px;
+  --sp-radius-pill: 999px;
+  --sp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Accent darkened so white text on it passes AA (>= 4.5:1) in every theme x palette */
+  --sp-accent-fill: color-mix(in srgb, var(--red-primary) 78%, #000);
+}
+
+/* AA-safe text colours on glass (the raw accent / danger / success fail 4.5:1 as small text in some theme x palette combos) */
+:root,
+[data-theme='dark'] {
+  --sp-accent-text: color-mix(in srgb, var(--red-primary) 62%, #fff);
+  --sp-danger-text: color-mix(in srgb, var(--danger) 62%, #fff);
+  --sp-ok-text: var(--emerald);
+}
+[data-theme='light'] {
+  --sp-accent-text: color-mix(in srgb, var(--red-primary) 86%, #000);
+  --sp-danger-text: color-mix(in srgb, var(--danger) 74%, #000);
+  --sp-ok-text: color-mix(in srgb, var(--emerald) 68%, #000);
+}
