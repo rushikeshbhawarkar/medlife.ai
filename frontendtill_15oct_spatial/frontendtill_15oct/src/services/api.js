@@ -63,27 +63,37 @@ export const removeMember=(_email,name)=>call('/removemember',{method:'POST',par
 export const consumeToken=(_email,name)=>call('/tokens/',{params:{member_name:name}}).then(d=>Number(d.message));
 export const fetchChat=(_email,name)=>call('/fetchChat/',{params:{member_name:name}}).then(d=>Array.isArray(d.chat)?d.chat:Array.isArray(d)?d:[]);
 export const saveChat=(_email,name,chat)=>call('/saveChat/',{method:'POST',params:{member_name:name},body:{chat}});
-export const askMemberAI=(member_name,query,provider,local_model)=>
-  call('/chat/ask/',{
-    method:'POST',
-    body:{
+export const askMemberAI = (member_name, query, provider, model) =>
+  call('/chat/ask/', {
+    method: 'POST',
+    body: {
       member_name,
       query,
-      ...(provider?{provider}:{}),
-      ...(local_model?{local_model}:{}),
+      ...(provider ? { provider } : {}),
+      ...(model ? { model, local_model: model } : {}),
     },
   });
-export const askAI=async(query,provider,local_model)=>{
-  const params={query,...(provider?{provider}:{}),...(local_model?{local_model}:{})};
-  const d=await call('/prompt/',{params});
-  return typeof d==='string'?d:(d.answer||d.response||JSON.stringify(d));
+export const askAI = async (query, provider, model) => {
+  const params = {
+    query,
+    ...(provider ? { provider } : {}),
+    ...(model ? { model, local_model: model } : {}),
+  };
+  const d = await call('/prompt/', { params });
+  return typeof d === 'string' ? d : (d.answer || d.response || JSON.stringify(d));
 };
-export const getAIProviders=()=>call('/providers/');
-export const scanDocument=(image,documentType,member_name)=>{const body=new FormData();body.append('image',image);body.append('documentType',documentType);body.append('member_name',member_name);return call('/documents/scan/',{method:'POST',body,formData:true})};
-export const listDocuments=member_name=>call('/documents/',{params:{member_name}});
-export const getDocument=id=>call(`/documents/${id}/`);
-export const updateDocument=(id,body)=>call(`/documents/${id}/`,{method:'PATCH',body});
-export const deleteDocument=id=>call(`/documents/${id}/`,{method:'DELETE'});
+export const getAIProviders = () => call('/providers/');
+export const scanDocument = (image, documentType, member_name) => {
+  const body = new FormData();
+  body.append('image', image);
+  body.append('documentType', documentType);
+  body.append('member_name', member_name);
+  return call('/documents/scan/', { method: 'POST', body, formData: true });
+};
+export const listDocuments = (member_name) => call('/documents/', { params: { member_name } });
+export const getDocument = (id) => call(`/documents/${id}/`);
+export const updateDocument = (id, body) => call(`/documents/${id}/`, { method: 'PATCH', body });
+export const deleteDocument = (id) => call(`/documents/${id}/`, { method: 'DELETE' });
 
 // Doctor System API methods
 export const getPublicDoctors = (specialty) =>
@@ -104,10 +114,16 @@ export const submitDoctorApplication = (data) => {
   });
 };
 
-export const activateDoctorAccount = ({ token, password, confirm_password }) =>
+export const activateDoctorAccount = ({ token, action = 'setup', password, confirm_password, code }) =>
   call('/doctor/activate-account/', {
     method: 'POST',
-    body: { token, password, confirm_password },
+    body: {
+      token,
+      action,
+      ...(password !== undefined ? { password } : {}),
+      ...(confirm_password !== undefined ? { confirm_password } : {}),
+      ...(code !== undefined ? { code } : {}),
+    },
     auth: false,
   });
 
@@ -156,7 +172,7 @@ export const sendDoctorInvitation = (email) =>
   call('/doctor/admin/invitations/', { method: 'POST', body: { email } });
 
 export const acceptDoctorInvitation = (data) =>
-  call('/doctor/invitations/accept/', { method: 'POST', body: data });
+  call('/doctor/invitations/accept/', { method: 'POST', body: data, auth: false });
 
 export const getAccessGrants = () =>
   call('/doctor/access-grants/');

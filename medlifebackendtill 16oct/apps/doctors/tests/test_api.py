@@ -1,4 +1,6 @@
 from datetime import timedelta
+import hashlib
+import secrets
 
 from django.test import TestCase
 from django.utils import timezone
@@ -8,7 +10,7 @@ from apps.accounts.models import Account
 from apps.accounts.tokens import password_fingerprint
 from django.core import signing
 from apps.members.models import FamilyMember
-from apps.doctors.models import Appointment, DoctorAccessGrant, DoctorApplication, DoctorProfile
+from apps.doctors.models import Appointment, DoctorAccessGrant, DoctorApplication, DoctorAccountActivation, DoctorInvitation, DoctorProfile
 
 
 def bearer_for(account):
@@ -107,7 +109,7 @@ class DoctorApiTests(TestCase):
         blocked = self.doctor_client.get(f"/medlife/doctor/shared-records/{self.member.pk}/")
         self.assertEqual(blocked.status_code, 403)
 
-    def test_public_application_creates_no_account_and_approval_creates_doctor_account(self):
+    def test_public_application_approval_defers_account_creation_until_activation(self):
         from django.test import override_settings
         with override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", DEFAULT_FROM_EMAIL="MedLife <no-reply@medlife.test>"):
             submitted = APIClient().post("/medlife/doctor/applications/", {
@@ -124,12 +126,85 @@ class DoctorApiTests(TestCase):
             application_id = submitted.json()["application"]["id"]
             reviewed = reviewer_client.post(f"/medlife/doctor/admin/applications/{application_id}/review/", {"decision": "approve"}, format="json")
             self.assertEqual(reviewed.status_code, 200, reviewed.json())
-            doctor_account = Account.objects.get(email="new-applicant@example.com")
+            self.assertFalse(Account.objects.filter(email="new-applicant@example.com").exists())
+            from apps.doctors.models import DoctorAccountActivation
+            activation = DoctorAccountActivation.objects.get(application_id=application_id)
+            self.assertEqual(activation.email, "new-applicant@example.com")
+            self.assertIsNone(activation.account_id)
+            self.assertEqual(activation.full_name, "Dr Applicant")
+
+
+    def test_invitation_acceptance_does_not_require_patient_account_or_create_account_early(self):
+        admin = Account.objects.create(email="invite-admin@example.com", role=Account.Role.SUPER_ADMIN)
+        raw_token = secrets.token_urlsafe(32)
+        invitation = DoctorInvitation.objects.create(
+            email="invited-doctor@example.com",
+            token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
+            expires_at=timezone.now() + timedelta(days=7), invited_by=admin,
+        )
+        response = APIClient().post("/medlife/doctor/invitations/accept/", {
+            "token": raw_token, "decision": "accept", "full_name": "Dr Invited",
+            "specialty": "Dermatology", "qualifications": "MBBS", "registration_number": "REG-INV-1",
+            "years_experience": 2,
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.json())
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, DoctorInvitation.Status.ACCEPTED)
+        self.assertFalse(Account.objects.filter(email="invited-doctor@example.com").exists())
+        activation = DoctorAccountActivation.objects.get(invitation=invitation)
+        self.assertIsNone(activation.account_id)
+        self.assertEqual(activation.full_name, "Dr Invited")
+
+    def test_invitation_rejection_does_not_create_account(self):
+        admin = Account.objects.create(email="reject-admin@example.com", role=Account.Role.SUPER_ADMIN)
+        raw_token = secrets.token_urlsafe(32)
+        invitation = DoctorInvitation.objects.create(
+            email="reject-doctor@example.com",
+            token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
+            expires_at=timezone.now() + timedelta(days=7), invited_by=admin,
+        )
+        response = APIClient().post("/medlife/doctor/invitations/accept/", {
+            "token": raw_token, "decision": "reject",
+        }, format="json")
+        self.assertEqual(response.status_code, 200, response.json())
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, DoctorInvitation.Status.REJECTED)
+        self.assertFalse(Account.objects.filter(email="reject-doctor@example.com").exists())
+
+    def test_doctor_account_is_created_only_after_password_and_totp_setup(self):
+        from django.test import override_settings
+        from apps.accounts.totp import decrypt_totp_secret
+        import pyotp
+        admin = Account.objects.create(email="activation-admin@example.com", role=Account.Role.SUPER_ADMIN)
+        app = DoctorApplication.objects.create(
+            email="activate-doctor@example.com", full_name="Dr Activate", specialty="Neurology",
+            qualifications="MBBS", registration_number="REG-ACT-1", status=DoctorApplication.Status.APPROVED,
+        )
+        raw_token = secrets.token_urlsafe(32)
+        activation = DoctorAccountActivation.objects.create(
+            email=app.email, application=app, full_name=app.full_name, specialty=app.specialty,
+            qualifications=app.qualifications, registration_number=app.registration_number,
+            token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
+            expires_at=timezone.now() + timedelta(hours=24),
+        )
+        with override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", DEFAULT_FROM_EMAIL="MedLife <no-reply@medlife.test>"):
+            setup = APIClient().post("/medlife/doctor/activate-account/", {
+                "token": raw_token, "action": "setup", "password": "StrongPassword123", "confirm_password": "StrongPassword123",
+            }, format="json")
+            self.assertEqual(setup.status_code, 200, setup.json())
+            self.assertFalse(Account.objects.filter(email=app.email).exists())
+            activation.refresh_from_db()
+            secret = decrypt_totp_secret(activation.pending_totp_secret_encrypted)
+            completed = APIClient().post("/medlife/doctor/activate-account/", {
+                "token": setup.json()["token"], "action": "complete", "code": pyotp.TOTP(secret).now(),
+            }, format="json")
+            self.assertEqual(completed.status_code, 200, completed.json())
+            doctor_account = Account.objects.get(email=app.email)
             self.assertEqual(doctor_account.role, Account.Role.DOCTOR)
-            profile = DoctorProfile.objects.get(account=doctor_account)
-            self.assertTrue(profile.doctor_id.startswith("MLD"))
-            self.assertEqual(doctor_account.password, "")
-            self.assertTrue(doctor_account.doctor_activations.exists())
+            self.assertTrue(doctor_account.totp_enabled)
+            self.assertTrue(DoctorProfile.objects.filter(account=doctor_account, status=DoctorProfile.Status.APPROVED).exists())
+            activation.refresh_from_db()
+            self.assertIsNotNone(activation.consumed_at)
 
     def test_patient_account_cannot_be_converted_by_doctor_application(self):
         submitted = APIClient().post("/medlife/doctor/applications/", {

@@ -116,8 +116,7 @@ export default function AdminPortalView({ email, initialTab = 'applications' }) 
     try {
       const res = await reviewDoctorApplication(reviewingApp.id, decision, reviewNote.trim());
       if (decision === 'approve') {
-        const docIdMsg = res?.doctor_id ? ` (Provisioned Doctor ID: ${res.doctor_id})` : '';
-        setSuccess(`Application #${reviewingApp.id} for ${reviewingApp.full_name} approved${docIdMsg}! A secure password activation link has been sent to ${reviewingApp.email}.`);
+        setSuccess(`Application #${reviewingApp.id} for ${reviewingApp.full_name} approved! An activation link has been sent to ${reviewingApp.email}. The doctor account will be created once the applicant completes password and authenticator activation.`);
       } else {
         setSuccess(`Application #${reviewingApp.id} for ${reviewingApp.full_name} rejected. Decision notification emailed to ${reviewingApp.email}.`);
       }

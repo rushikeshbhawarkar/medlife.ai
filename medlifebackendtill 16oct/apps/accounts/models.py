@@ -167,3 +167,10 @@ class Account(models.Model):
 
     def __str__(self):
         return self.email
+
+    # Purpose: Explicit consent for sharing data with Medlife’s Cloud AI. Null = consent not yet given.
+    cloud_ai_consent = models.BooleanField(default=False)
+    cloud_ai_consent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
