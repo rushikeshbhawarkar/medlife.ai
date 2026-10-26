@@ -2,6 +2,7 @@
 from django.core import signing
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, Throttled
 from rest_framework.permissions import AllowAny
@@ -83,6 +84,30 @@ def account_me(request):
     if account.role == Account.Role.DOCTOR and (not profile or profile.status != DoctorProfile.Status.APPROVED):
         payload["dashboard"] = "patient"
     return Response(payload)
+
+
+@api_view(["GET", "POST"])
+def cloud_ai_consent(request):
+    """Read or update the signed-in account's consent for sending questions to cloud AI."""
+    account = request.user
+    if request.method == "GET":
+        return Response({
+            "cloud_ai_consent": account.cloud_ai_consent,
+            "cloud_ai_consent_at": account.cloud_ai_consent_at.isoformat() if account.cloud_ai_consent_at else None,
+        })
+
+    consent = request.data.get("consent")
+    if not isinstance(consent, bool):
+        from rest_framework.exceptions import ValidationError
+        raise ValidationError({"consent": "Provide true or false."})
+
+    account.cloud_ai_consent = consent
+    account.cloud_ai_consent_at = timezone.now() if consent else None
+    account.save(update_fields=["cloud_ai_consent", "cloud_ai_consent_at"])
+    return Response({
+        "cloud_ai_consent": account.cloud_ai_consent,
+        "cloud_ai_consent_at": account.cloud_ai_consent_at.isoformat() if account.cloud_ai_consent_at else None,
+    })
 
 
 @api_view(["POST"])

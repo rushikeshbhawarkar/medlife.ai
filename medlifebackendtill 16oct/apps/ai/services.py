@@ -11,9 +11,8 @@ from .providers.factory import get_provider
 
 def _profile_context(member):
     """Return only existing, user-entered profile fields useful for health context."""
+    # Do not send direct identifiers (name or date of birth) to AI providers.
     values = [
-        ("Name", " ".join(part for part in [member.first_name, member.last_name] if part).strip()),
-        ("Date of birth", member.dob),
         ("Gender", member.gender),
         ("Height", member.height),
         ("Weight", member.weight),
@@ -52,16 +51,78 @@ def _check_rate_limit(request):
         raise Throttled(detail="Too many questions. Please wait a minute and try again.")
 
 
+def _provider_key(provider_name=None):
+    """Normalize provider aliases to decide whether data leaves the MedLife server."""
+    provider = (provider_name or settings.AI_PROVIDER or "ollama").strip().lower()
+    if provider in ("local", "ollama"):
+        return "local"
+    if provider in ("openai", "chatgpt", "openai_compatible"):
+        return "openai"
+    return provider
+
+
+def _provider_model(provider_key, model=None, local_model=None):
+    """Return a model label for audit metadata; never record prompts or profile values."""
+    requested = model or local_model
+    if requested:
+        return requested[:120]
+    setting_name = {
+        "gemini": "GEMINI_MODEL",
+        "claude": "CLAUDE_MODEL",
+        "openai": "OPENAI_MODEL",
+        "local": "AI_MODEL",
+        "mock": "AI_MODEL",
+    }.get(provider_key)
+    return str(getattr(settings, setting_name, "") or "")[:120]
+
+
+def _write_provider_audit(account, provider_key, model_name, outcome):
+    """Record provider metadata only; never store prompts, answers, or clinical details."""
+    from .models import AIProviderAudit
+    AIProviderAudit.objects.create(
+        account=account if getattr(account, "pk", None) is not None else None,
+        provider=provider_key[:24],
+        model=model_name[:120],
+        outcome=outcome,
+    )
+
+
 def _call_provider(request, query, context="", provider_name=None, local_model=None, model=None):
     _check_query(query)
     _check_rate_limit(request)
+    provider_key = _provider_key(provider_name)
+    account = getattr(request, "user", None)
+    cloud_provider = provider_key in {"gemini", "claude", "openai"}
+    model_name = _provider_model(provider_key, model=model, local_model=local_model)
+
+    # Consent is checked on the server for every cloud AI call, including general questions.
+    if cloud_provider:
+        if not getattr(account, "pk", None):
+            raise APIException("Sign in is required before using a cloud AI provider.")
+        if not account.cloud_ai_consent:
+            _write_provider_audit(account, provider_key, model_name, "blocked_no_consent")
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied({
+                "code": "cloud_ai_consent_required",
+                "detail": "Please provide consent to send your question to a cloud AI provider before continuing.",
+            })
+
     try:
-        return get_provider(provider_name=provider_name, local_model=local_model, model=model).answer(query, context=context)
+        answer = get_provider(
+            provider_name=provider_name, local_model=local_model, model=model
+        ).answer(query, context=context)
     except APIException:
+        if cloud_provider:
+            _write_provider_audit(account, provider_key, model_name, "failed")
         raise
     except Exception:
+        if cloud_provider:
+            _write_provider_audit(account, provider_key, model_name, "failed")
         # Do not log provider payloads or prompts; return a friendly generic error.
         raise RuntimeError("The health assistant is temporarily unavailable. Please try again later.") from None
+    if cloud_provider:
+        _write_provider_audit(account, provider_key, model_name, "succeeded")
+    return answer
 
 
 def answer_query(request, query, provider_name=None, local_model=None, model=None):

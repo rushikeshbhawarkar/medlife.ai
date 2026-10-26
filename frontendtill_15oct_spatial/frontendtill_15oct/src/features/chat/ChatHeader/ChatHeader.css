@@ -1,25 +1,191 @@
 /** ChatHeader component styles.
- * Edit this file when changing the visual appearance of this component.
+ * Responsive layout matching MedLife Spatial design tokens.
  */
-.chat-header{display:flex;align-items:center;gap:13px;padding:20px 22px;border-bottom:1px solid var(--border-subtle)}
-.chat-head-icon{width:43px;height:43px;border-radius:14px;background:var(--red-light);border:1px solid var(--border-accent);color:var(--red-primary);display:grid;place-items:center;flex:none}
-.chat-head-title{flex:1;min-width:130px}
-.chat-head-title h2{font-size:1.15rem;font-family:var(--font-body);letter-spacing:-.02em;margin:0 0 3px}
-.chat-head-title p{font-size:.78rem;color:var(--text-muted);margin:0}
-.chat-header .btn{flex:none}
-@media(max-width:700px){.chat-header{flex-wrap:wrap;padding:16px}.chat-head-title{flex:1}.question-meter{margin-left:56px}.chat-header .btn{margin-left:auto}}
+.chat-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--sp-glass-raised);
+  border-bottom-color: var(--sp-edge);
+  box-shadow: var(--sp-edge-top);
+}
 
-/* ===== Spatial UI ===== */
-.chat-header{background:var(--sp-glass-raised);border-bottom-color:var(--sp-edge);box-shadow:var(--sp-edge-top)}
-.chat-head-icon{background:color-mix(in srgb,var(--red-primary) 14%,transparent);color:var(--sp-accent-text);border-radius:var(--sp-radius-sm);box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.chat-header-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
 
-/* the header lives in a narrow dashboard pane: let it wrap instead of clipping the download button */
-.chat-header{flex-wrap:wrap}
-.chat-head-title{flex:1 1 150px}
-.chat-header .btn{margin-left:auto}
+.chat-head-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--sp-radius-sm, 12px);
+  background: color-mix(in srgb, var(--red-primary) 14%, transparent);
+  border: 1px solid var(--border-accent);
+  color: var(--sp-accent-text, var(--red-primary));
+  display: grid;
+  place-items: center;
+  flex: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
 
-.ai-selector-wrap{display:flex;align-items:center;gap:6px;background:var(--sp-glass-raised, rgba(255,255,255,.05));border:1px solid var(--border-accent, rgba(255,255,255,.12));border-radius:var(--sp-radius-xs, 10px);padding:3px 8px}
-.ai-selector-icon{color:var(--text-muted, rgba(255,255,255,.55));flex:none}
-.ai-provider-select,.ai-model-select{background:transparent;border:0;color:var(--text-primary, #fff);font-size:.76rem;font-weight:600;font-family:inherit;padding:2px 4px;outline:none;cursor:pointer}
-.ai-provider-select option,.ai-model-select option{background:var(--bg-secondary, #121820);color:var(--text-primary, #fff)}
+.chat-head-title {
+  flex: 1;
+  min-width: 120px;
+}
 
+.chat-head-title h2 {
+  font-size: 1.15rem;
+  font-family: var(--font-body);
+  letter-spacing: -0.02em;
+  margin: 0 0 2px;
+}
+
+.chat-head-title p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex: none;
+}
+
+/* AI Selector & Badges bar */
+.ai-selector-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-top: 2px;
+}
+
+.ai-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sp-glass-raised, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-accent, rgba(255, 255, 255, 0.12));
+  border-radius: var(--sp-radius-xs, 10px);
+  padding: 4px 10px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.ai-selector-icon {
+  color: var(--text-muted, rgba(255, 255, 255, 0.55));
+  flex: none;
+}
+
+.ai-provider-select,
+.ai-model-select {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, #fff);
+  font-size: 0.77rem;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 2px 4px;
+  outline: none;
+  cursor: pointer;
+  max-width: 250px;
+}
+
+.ai-provider-select option,
+.ai-model-select option {
+  background: var(--bg-secondary, #121820);
+  color: var(--text-primary, #fff);
+}
+
+.ai-badges-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ai-consent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: var(--sp-radius-xs, 6px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: transparent;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.ai-consent-pill.pill-granted {
+  background: color-mix(in srgb, var(--emerald, #34d399) 18%, transparent);
+  color: var(--emerald, #34d399);
+  border-color: color-mix(in srgb, var(--emerald, #34d399) 35%, transparent);
+}
+
+.ai-consent-pill.pill-required {
+  background: color-mix(in srgb, var(--warning, #fbbf24) 18%, transparent);
+  color: var(--warning, #fbbf24);
+  border-color: color-mix(in srgb, var(--warning, #fbbf24) 40%, transparent);
+}
+
+.ai-consent-pill.pill-error {
+  background: color-mix(in srgb, var(--danger, #ef4444) 18%, transparent);
+  color: var(--danger, #ef4444);
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 35%, transparent);
+}
+
+.ai-consent-pill.pill-local {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  cursor: default;
+}
+
+.ai-consent-pill.pill-unconfigured {
+  background: rgba(255, 165, 0, 0.12);
+  color: var(--warning, #fbbf24);
+  border-color: rgba(255, 165, 0, 0.3);
+  cursor: default;
+  font-size: 0.67rem;
+}
+
+.ai-consent-pill .spin {
+  animation: consent-spin 1s linear infinite;
+}
+
+@keyframes consent-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 650px) {
+  .chat-header-top {
+    flex-wrap: wrap;
+  }
+  .chat-header-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  .ai-selector-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ai-selector-wrap {
+    width: 100%;
+  }
+}

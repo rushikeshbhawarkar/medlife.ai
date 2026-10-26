@@ -1,13 +1,14 @@
 # Purpose: Account feature routes. Keep signup/signin without trailing slashes for frontend compatibility.
 from django.urls import path
 from .views import (
-    account_me, google_signin, google_password_setup, password_change, password_forgot, password_reset,
+    account_me, cloud_ai_consent, google_signin, google_password_setup, password_change, password_forgot, password_reset,
     signin, signup, totp_setup, verify_totp_login, verify_totp_setup,
     totp_recovery_request, totp_recovery_setup, totp_recovery_verify,
 )
 
 urlpatterns = [
     path("account/", account_me, name="account-me"),
+    path("account/cloud-ai-consent", cloud_ai_consent, name="account-cloud-ai-consent"),
     path("signup", signup, name="signup"),
     path("signin", signin, name="signin"),
     path("google/signin", google_signin, name="google-signin"),

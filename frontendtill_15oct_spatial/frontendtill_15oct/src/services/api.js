@@ -2,9 +2,12 @@
  * Configure VITE_API_BASE in .env (example: http://localhost:8000/medlife).
  * No demo fallback: backend/network errors are shown to the user.
  */
-const BASE=(import.meta.env.VITE_API_BASE||'http://localhost:8000/medlife').replace(/\/+$/,'');
+const BASE=((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE)||'http://localhost:8000/medlife').replace(/\/+$/,'');
 let token=localStorage.getItem('medlife_access_token')||'';
-export const setAccessToken=value=>{token=value||'';try{value?localStorage.setItem('medlife_access_token',value):localStorage.removeItem('medlife_access_token')}catch{}};
+let consentCache=null;
+let inFlightConsent=null;
+export const clearConsentCache=()=>{consentCache=null;inFlightConsent=null;};
+export const setAccessToken=value=>{token=value||'';if(!value)clearConsentCache();try{value?localStorage.setItem('medlife_access_token',value):localStorage.removeItem('medlife_access_token')}catch{}};
 export const getAccessToken=()=>token;
 export class ApiError extends Error{constructor(status,message){super(message);this.name='ApiError';this.status=status}}
 async function call(path,{method='GET',params={},body,formData=false,auth=true,timeout=120000}={}){
@@ -83,6 +86,42 @@ export const askAI = async (query, provider, model) => {
   return typeof d === 'string' ? d : (d.answer || d.response || JSON.stringify(d));
 };
 export const getAIProviders = () => call('/providers/');
+export const isCloudAiProvider = (providerId) => {
+  const p = (providerId || '').toLowerCase().trim();
+  return ['gemini', 'claude', 'openai', 'chatgpt', 'openai_compatible'].includes(p);
+};
+export const getCloudAiConsent = async ({ force = false } = {}) => {
+  if (!force && consentCache !== null) {
+    return consentCache;
+  }
+  if (inFlightConsent) {
+    return inFlightConsent;
+  }
+  inFlightConsent = (async () => {
+    try {
+      const data = await call('/account/cloud-ai-consent');
+      consentCache = {
+        consent: Boolean(data?.cloud_ai_consent),
+        consentAt: data?.cloud_ai_consent_at || null,
+      };
+      return consentCache;
+    } finally {
+      inFlightConsent = null;
+    }
+  })();
+  return inFlightConsent;
+};
+export const setCloudAiConsent = async (consent) => {
+  const data = await call('/account/cloud-ai-consent', {
+    method: 'POST',
+    body: { consent: Boolean(consent) },
+  });
+  consentCache = {
+    consent: Boolean(data?.cloud_ai_consent),
+    consentAt: data?.cloud_ai_consent_at || null,
+  };
+  return consentCache;
+};
 export const scanDocument = (image, documentType, member_name) => {
   const body = new FormData();
   body.append('image', image);

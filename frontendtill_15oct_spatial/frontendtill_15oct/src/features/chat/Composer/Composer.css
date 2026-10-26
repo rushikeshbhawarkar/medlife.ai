@@ -21,3 +21,14 @@
 @media(hover:hover){.composer button:hover:not(:disabled){transform:translateY(-2px)}}
 .composer button:active:not(:disabled){transform:scale(.94)}
 @media(max-width:600px){.composer button{width:44px;height:44px}}
+
+.composer-consent-notice{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 12px;border-radius:var(--sp-radius-xs, 8px);background:color-mix(in srgb,var(--warning,#fbbf24) 14%,var(--sp-glass-solid,#0d0f14));border:1px solid color-mix(in srgb,var(--warning,#fbbf24) 30%,transparent);color:var(--warning,#fbbf24);font-size:.76rem;line-height:1.3}
+.composer-consent-notice svg{flex:none}
+.composer-consent-link{background:none;border:none;color:var(--text-primary);font-weight:700;font-size:inherit;text-decoration:underline;cursor:pointer;padding:0;margin-left:auto}
+.composer-consent-link:hover{color:#fff}
+
+.composer-unconfigured-notice{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 12px;border-radius:var(--sp-radius-xs, 8px);background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);color:var(--warning,#fbbf24);font-size:.76rem;line-height:1.35}
+.composer-unconfigured-notice svg{flex:none}
+.composer-unconfigured-notice code{background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;color:#fff;font-family:monospace;font-size:.85em}
+
+
