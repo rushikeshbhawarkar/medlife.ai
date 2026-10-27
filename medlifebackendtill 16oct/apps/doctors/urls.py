@@ -3,6 +3,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("doctor/admin/dashboard/", views.admin_dashboard_overview, name="doctor-admin-dashboard"),
+    path("doctor/admin/doctors/", views.admin_doctors, name="doctor-admin-doctors"),
+    path("doctor/admin/patients/", views.admin_patients, name="doctor-admin-patients"),
+    path("doctor/admin/analytics/", views.admin_analytics, name="doctor-admin-analytics"),
+    path("doctor/admin/audit-log/", views.admin_audit_log, name="doctor-admin-audit-log"),
+    path("doctor/admin/appointments/<int:appointment_id>/history/", views.admin_appointment_history, name="doctor-admin-appointment-history"),
     path("doctors/", views.public_doctors, name="doctor-directory"),
     path("doctor/profile/", views.doctor_profile, name="doctor-profile"),
     path("doctor/applications/", views.submit_application, name="doctor-application-submit"),

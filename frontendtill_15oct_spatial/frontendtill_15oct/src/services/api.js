@@ -204,6 +204,38 @@ export const reviewDoctorApplication = (applicationId, decision, review_note = '
     body: { decision, review_note },
   });
 
+export const getAdminDashboardOverview = () =>
+  call('/doctor/admin/dashboard/');
+
+export const getAdminDoctors = (params = {}) =>
+  call('/doctor/admin/doctors/', { params });
+
+export const manageAdminDoctor = (doctor_id, action, reason = '') =>
+  call('/doctor/admin/doctors/', {
+    method: 'POST',
+    body: { doctor_id, action, reason },
+  });
+
+export const getAdminPatients = (params = {}) =>
+  call('/doctor/admin/patients/', { params });
+
+export const getAdminAnalytics = () =>
+  call('/doctor/admin/analytics/');
+
+export const getAdminAuditLog = (params = {}) =>
+  call('/doctor/admin/audit-log/', { params });
+
+export const getAdminAppointmentHistory = (appointmentId) =>
+  call(`/doctor/admin/appointments/${appointmentId}/history/`);
+
+export const getAdminAppointments = (params = {}) =>
+  call('/doctor/appointments/', {
+    params: { role: 'admin', ...params },
+  });
+
+export const bookAdminAppointment = (data) =>
+  call('/doctor/appointments/', { method: 'POST', body: data });
+
 export const getAdminInvitations = () =>
   call('/doctor/admin/invitations/');
 

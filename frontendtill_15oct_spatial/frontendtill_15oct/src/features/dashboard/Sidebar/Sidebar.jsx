@@ -12,6 +12,10 @@ import {
   Calendar,
   MessageSquare,
   Clock,
+  LayoutDashboard,
+  BarChart3,
+  UserCheck,
+  Activity,
 } from 'lucide-react';
 import Logo from '../../../components/Logo/index.js';
 import Button from '../../../components/Button/index.js';
@@ -33,7 +37,7 @@ export default function Sidebar({
   onClose,
   currentView = 'health',
   onSelectView,
-  adminTab = 'applications',
+  adminTab = 'overview',
   onSelectAdminTab,
   doctorTab = 'requests',
   onSelectDoctorTab,
@@ -67,6 +71,22 @@ export default function Sidebar({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px', flex: '1 1 auto' }}>
             <button
               type="button"
+              className={`member-choice ${currentView === 'admin_portal' && adminTab === 'overview' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectAdminTab) onSelectAdminTab('overview');
+                else if (onSelectView) onSelectView('admin_portal');
+                if (open) onClose();
+              }}
+            >
+              <LayoutDashboard size={18} color="var(--red-primary)" />
+              <span>
+                <strong>Overview</strong>
+                <small>System stats & activity</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
               className={`member-choice ${currentView === 'admin_portal' && adminTab === 'applications' ? 'member-selected' : ''}`}
               onClick={() => {
                 if (onSelectAdminTab) onSelectAdminTab('applications');
@@ -83,6 +103,54 @@ export default function Sidebar({
 
             <button
               type="button"
+              className={`member-choice ${currentView === 'admin_portal' && adminTab === 'doctors' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectAdminTab) onSelectAdminTab('doctors');
+                else if (onSelectView) onSelectView('admin_portal');
+                if (open) onClose();
+              }}
+            >
+              <UserCheck size={18} color="var(--emerald)" />
+              <span>
+                <strong>Doctor Directory</strong>
+                <small>Profiles & suspension</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'admin_portal' && adminTab === 'appointments' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectAdminTab) onSelectAdminTab('appointments');
+                else if (onSelectView) onSelectView('admin_portal');
+                if (open) onClose();
+              }}
+            >
+              <Calendar size={18} color="var(--blue-500, #3b82f6)" />
+              <span>
+                <strong>Appointments</strong>
+                <small>Bookings & history</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'admin_portal' && adminTab === 'patients' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectAdminTab) onSelectAdminTab('patients');
+                else if (onSelectView) onSelectView('admin_portal');
+                if (open) onClose();
+              }}
+            >
+              <Users size={18} color="var(--purple-500, #a855f7)" />
+              <span>
+                <strong>Patient Accounts</strong>
+                <small>Account directory</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
               className={`member-choice ${currentView === 'admin_portal' && adminTab === 'invitations' ? 'member-selected' : ''}`}
               onClick={() => {
                 if (onSelectAdminTab) onSelectAdminTab('invitations');
@@ -93,7 +161,39 @@ export default function Sidebar({
               <Mail size={18} color="var(--red-primary)" />
               <span>
                 <strong>Doctor Invitations</strong>
-                <small>Onboarding invitations</small>
+                <small>Onboarding invites</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'admin_portal' && adminTab === 'analytics' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectAdminTab) onSelectAdminTab('analytics');
+                else if (onSelectView) onSelectView('admin_portal');
+                if (open) onClose();
+              }}
+            >
+              <BarChart3 size={18} color="var(--cyan-500, #06b6d4)" />
+              <span>
+                <strong>Analytics</strong>
+                <small>6-month trends</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'admin_portal' && adminTab === 'audit_log' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectAdminTab) onSelectAdminTab('audit_log');
+                else if (onSelectView) onSelectView('admin_portal');
+                if (open) onClose();
+              }}
+            >
+              <Activity size={18} color="var(--amber-500, #f59e0b)" />
+              <span>
+                <strong>Audit Log</strong>
+                <small>Admin event stream</small>
               </span>
             </button>
           </div>

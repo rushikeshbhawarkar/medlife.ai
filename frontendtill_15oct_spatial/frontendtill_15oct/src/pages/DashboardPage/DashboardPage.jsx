@@ -56,7 +56,7 @@ export default function DashboardPage({ email, onSignOut }) {
 
   // User identity & role state: 'super_admin' | 'doctor' | 'patient'
   const [accountRole, setAccountRole] = useState('patient');
-  const [adminTab, setAdminTab] = useState('applications');
+  const [adminTab, setAdminTab] = useState('overview');
   const [doctorTab, setDoctorTab] = useState('requests');
 
   // View state: 'health' | 'consultation' | 'doctor_workspace' | 'admin_portal'
@@ -321,7 +321,7 @@ export default function DashboardPage({ email, onSignOut }) {
 
           {/* VIEW: ADMIN PORTAL (Staff) */}
           {currentView === 'admin_portal' && (
-            <AdminPortalView email={email} initialTab={adminTab} />
+            <AdminPortalView email={email} initialTab={adminTab} onTabChange={setAdminTab} />
           )}
 
           {/* VIEW: FAMILY HEALTH DASHBOARD (Default) */}

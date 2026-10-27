@@ -10,6 +10,8 @@ from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from django.http import FileResponse, Http404
 from django.db import transaction
+from django.db.models import Count, Q
+from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -25,7 +27,7 @@ from apps.documents.models import ScannedDocument
 from apps.members.models import FamilyMember
 from apps.accounts.totp import decrypt_totp_secret, encrypt_totp_secret, make_totp_setup, matching_totp_step
 from .models import (
-    Appointment, ConsultationNote, DoctorAccessGrant, DoctorApplication, DoctorAccountActivation, DoctorApplicationDocument, DoctorAuditLog, DoctorChatMessage,
+    Appointment, AppointmentHistory, ConsultationNote, DoctorAccessGrant, DoctorApplication, DoctorAccountActivation, DoctorApplicationDocument, DoctorAuditLog, DoctorChatMessage,
     DoctorChatRequest, DoctorInvitation, DoctorNotification, DoctorProfile,
 )
 
@@ -143,6 +145,14 @@ def _appointment_data(appointment):
         "created_at": appointment.created_at.isoformat(),
         "updated_at": appointment.updated_at.isoformat(),
     }
+
+
+def _record_appointment_history(appointment, actor, action, from_status="", to_status="", reason="", metadata=None):
+    return AppointmentHistory.objects.create(
+        appointment=appointment, actor=actor, action=action,
+        from_status=from_status or "", to_status=to_status or "",
+        reason=(reason or "")[:1000], metadata=metadata or {},
+    )
 
 
 def _chat_request_data(chat_request):
@@ -270,6 +280,7 @@ def _application_data(app):
         "years_experience": app.years_experience, "status": app.status, "review_note": app.review_note,
         "documents": [{"id": d.pk, "document_type": d.document_type, "uploaded_at": d.uploaded_at.isoformat()} for d in app.documents.all()],
         "created_at": app.created_at.isoformat(), "reviewed_at": app.reviewed_at.isoformat() if app.reviewed_at else None,
+        "reviewed_by": app.reviewed_by.email if app.reviewed_by_id else None,
     }
 
 
@@ -318,6 +329,9 @@ def review_application(request, application_id):
     decision = str(request.data.get("decision", "")).strip().lower()
     if decision not in ("approve", "reject"):
         raise ValidationError({"decision": "Use approve or reject."})
+    review_note = str(request.data.get("review_note", "")).strip()[:1000]
+    if decision == "reject" and not review_note:
+        raise ValidationError({"review_note": "A reason is required when rejecting an application."})
     with transaction.atomic():
         app = get_object_or_404(DoctorApplication.objects.select_for_update().select_related("account"), pk=application_id)
         if app.status != DoctorApplication.Status.PENDING:
@@ -350,12 +364,12 @@ def review_application(request, application_id):
         else:
             send_mail(
                 subject="Update on your MedLife doctor application",
-                message=(f"Hello {app.full_name},\n\nYour MedLife doctor application was not approved at this time.\nReason: {str(request.data.get('review_note', '')).strip()[:1000] or 'Please contact MedLife for more information.'}\n\nMedLife"),
+                message=(f"Hello {app.full_name},\n\nYour MedLife doctor application was not approved at this time.\nReason: {review_note}\n\nMedLife"),
                 from_email=settings.DEFAULT_FROM_EMAIL, recipient_list=[email], fail_silently=False,
             )
             _audit(request.user, "doctor_application_rejected", metadata={"application_id": app.pk})
         app.status = DoctorApplication.Status.APPROVED if decision == "approve" else DoctorApplication.Status.REJECTED
-        app.review_note = str(request.data.get("review_note", "")).strip()[:1000]
+        app.review_note = review_note
         app.reviewed_by = request.user
         app.reviewed_at = timezone.now()
         app.save(update_fields=["status", "review_note", "reviewed_by", "reviewed_at", "updated_at"])
@@ -458,7 +472,9 @@ def admin_invitations(request):
     if request.method == "GET":
         items = DoctorInvitation.objects.select_related("invited_by", "accepted_by").prefetch_related("activations").all()[:200]
         return Response({"invitations": [{
-            "id": i.pk, "email": i.email, "status": i.status,
+            "id": i.pk, "email": i.email,
+            "status": "expired" if i.status == DoctorInvitation.Status.PENDING and i.is_expired() else i.status,
+            "email_status": "sent",
             "account_created": bool(i.accepted_by_id),
             "activation_pending": bool(i.status == DoctorInvitation.Status.ACCEPTED and not i.accepted_by_id),
             "expires_at": i.expires_at.isoformat(), "created_at": i.created_at.isoformat(),
@@ -625,7 +641,10 @@ def appointments(request):
     caller_email(request)
     if request.method == "GET":
         role = request.query_params.get("role", "patient").strip().lower()
-        if role == "doctor":
+        if role == "admin":
+            _require_staff(request.user, super_admin=True)
+            qs = Appointment.objects.all()
+        elif role == "doctor":
             doctor = _doctor_for(request.user)
             qs = Appointment.objects.filter(doctor=doctor)
         elif role == "patient":
@@ -633,13 +652,78 @@ def appointments(request):
                 raise PermissionDenied("Patient account access is required.")
             qs = Appointment.objects.filter(requested_by=request.user)
         else:
-            raise ValidationError({"role": "Use patient or doctor."})
+            raise ValidationError({"role": "Use patient, doctor or admin."})
+
         state = request.query_params.get("status", "").strip().lower()
         if state:
             if state not in Appointment.Status.values:
                 raise ValidationError({"status": "Invalid appointment status."})
             qs = qs.filter(status=state)
-        return Response({"appointments": [_appointment_data(a) for a in qs.select_related("member", "doctor__account")]})
+        doctor_id = request.query_params.get("doctor_id")
+        patient_id = request.query_params.get("patient_id")
+        date_from = request.query_params.get("date_from")
+        date_to = request.query_params.get("date_to")
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        if patient_id:
+            qs = qs.filter(member__account_id=patient_id)
+        if date_from:
+            from django.utils.dateparse import parse_date
+            parsed = parse_date(date_from)
+            if not parsed: raise ValidationError({"date_from": "Use YYYY-MM-DD."})
+            qs = qs.filter(preferred_at__date__gte=parsed)
+        if date_to:
+            from django.utils.dateparse import parse_date
+            parsed = parse_date(date_to)
+            if not parsed: raise ValidationError({"date_to": "Use YYYY-MM-DD."})
+            qs = qs.filter(preferred_at__date__lte=parsed)
+        try:
+            limit = min(max(int(request.query_params.get("limit", "100")), 1), 200)
+        except (TypeError, ValueError):
+            raise ValidationError({"limit": "Use an integer from 1 to 200."})
+        items = qs.select_related("member", "member__account", "doctor__account", "requested_by", "booked_by").order_by("-created_at", "-id")[:limit]
+        result = []
+        for a in items:
+            item = _appointment_data(a)
+            # Administrative overview needs booking metadata, not patient-entered clinical narrative.
+            item.pop("reason", None)
+            item.pop("patient_note", None)
+            item.update({
+                "patient_account_id": a.member.account_id,
+                "patient_email": a.member.account.email,
+                "doctor_name": a.doctor.full_name,
+                "doctor_email": a.doctor.account.email,
+                "requested_by_email": a.requested_by.email,
+                "booked_by_email": a.booked_by.email if a.booked_by_id else None,
+            })
+            result.append(item)
+        return Response({"appointments": result, "limit": limit})
+
+    if request.user.role == Account.Role.SUPER_ADMIN:
+        _require_staff(request.user, super_admin=True)
+        member = get_object_or_404(FamilyMember.objects.select_related("account"), pk=request.data.get("member_id"))
+        if member.account.role != Account.Role.PATIENT:
+            raise ValidationError({"member_id": "Choose a family profile belonging to an existing patient account."})
+        doctor = get_object_or_404(DoctorProfile, pk=request.data.get("doctor_id"), status=DoctorProfile.Status.APPROVED, is_available=True)
+        preferred_at = _parse_datetime(request.data.get("preferred_at"), "preferred_at")
+        if preferred_at <= timezone.now():
+            raise ValidationError({"preferred_at": "Choose a future date and time."})
+        if not _active_grant(member, doctor, "profile"):
+            raise PermissionDenied("The patient must have an active profile-sharing consent for this doctor before an appointment can be booked.")
+        with transaction.atomic():
+            appointment = Appointment.objects.create(
+                member=member, doctor=doctor, requested_by=member.account, booked_by=request.user,
+                preferred_at=preferred_at, reason=str(request.data.get("reason", "")).strip()[:1000],
+                patient_note=str(request.data.get("patient_note", "")).strip()[:2000],
+            )
+            _record_appointment_history(appointment, request.user, "admin_booked", "", appointment.status,
+                                        reason=str(request.data.get("reason", "")).strip()[:1000],
+                                        metadata={"patient_account_id": member.account_id, "member_id": member.pk})
+            _audit(request.user, "admin_appointment_booked", member=member, doctor=doctor,
+                   metadata={"appointment_id": appointment.pk, "patient_account_id": member.account_id})
+            _notify(doctor.account, "appointment_requested", "New appointment request", "An appointment has been booked for a patient and awaits your decision.", appointment=appointment)
+            _notify(member.account, "appointment_requested", "Appointment request created", "An appointment request was created for your family profile.", appointment=appointment)
+        return Response({"appointment": _appointment_data(appointment)}, status=status.HTTP_201_CREATED)
 
     member = _member_for_owner(request.user, request.data.get("member_id"))
     doctor = get_object_or_404(DoctorProfile, pk=request.data.get("doctor_id"), status=DoctorProfile.Status.APPROVED, is_available=True)
@@ -655,6 +739,7 @@ def appointments(request):
             reason=str(request.data.get("reason", "")).strip()[:1000],
             patient_note=str(request.data.get("patient_note", "")).strip()[:2000],
         )
+        _record_appointment_history(appointment, request.user, "created", "", appointment.status, reason=appointment.reason)
         _notify(doctor.account, "appointment_requested", "New appointment request", "A patient has requested an appointment.", appointment=appointment)
         _notify(request.user, "appointment_requested", "Appointment request submitted", "Your appointment request is awaiting the doctor's decision.", appointment=appointment)
     return Response({"appointment": _appointment_data(appointment)}, status=status.HTTP_201_CREATED)
@@ -672,6 +757,7 @@ def appointment_decision(request, appointment_id):
         appointment = get_object_or_404(Appointment.objects.select_for_update().select_related("member", "doctor__account", "requested_by"), pk=appointment_id, doctor=doctor)
         if appointment.status != Appointment.Status.REQUESTED:
             raise ValidationError({"detail": "Only requested appointments can be accepted or rejected."})
+        previous_status = appointment.status
         if decision == "accept":
             if not _active_grant(appointment.member, doctor, "profile"):
                 raise PermissionDenied("The patient's record-sharing consent is no longer active.")
@@ -690,6 +776,10 @@ def appointment_decision(request, appointment_id):
         appointment.doctor_response = str(request.data.get("doctor_response", "")).strip()[:1000]
         appointment.decided_at = timezone.now()
         appointment.save()
+        _record_appointment_history(appointment, request.user, "doctor_decision", previous_status, appointment.status,
+                                    reason=appointment.doctor_response)
+        _audit(request.user, f"appointment_{appointment.status}", member=appointment.member, doctor=doctor,
+               metadata={"appointment_id": appointment.pk, "decision": decision})
         _notify(appointment.requested_by, f"appointment_{appointment.status}", f"Appointment {appointment.status}", "Your appointment request status has changed.", appointment=appointment)
         _notify(doctor.account, f"appointment_{appointment.status}", f"Appointment {appointment.status}", "The appointment request was updated.", appointment=appointment)
     return Response({"appointment": _appointment_data(appointment)})
@@ -709,9 +799,14 @@ def cancel_appointment(request, appointment_id):
         raise PermissionDenied("You cannot cancel this appointment.")
     if appointment.status not in (Appointment.Status.REQUESTED, Appointment.Status.ACCEPTED):
         raise ValidationError({"detail": "Only requested or accepted appointments can be cancelled."})
+    previous_status = appointment.status
     appointment.status = Appointment.Status.CANCELLED
-    appointment.doctor_response = str(request.data.get("reason", "")).strip()[:1000] if is_doctor else appointment.doctor_response
+    cancellation_reason = str(request.data.get("reason", "")).strip()[:1000] if is_doctor else ""
+    appointment.doctor_response = cancellation_reason or appointment.doctor_response
     appointment.save(update_fields=["status", "doctor_response", "updated_at"])
+    _record_appointment_history(appointment, request.user, "cancelled", previous_status, appointment.status, reason=cancellation_reason)
+    _audit(request.user, "appointment_cancelled", member=appointment.member, doctor=appointment.doctor,
+           metadata={"appointment_id": appointment.pk})
     recipient = appointment.doctor.account if is_patient else appointment.requested_by
     _notify(recipient, "appointment_cancelled", "Appointment cancelled", "An appointment has been cancelled.", appointment=appointment)
     return Response({"appointment": _appointment_data(appointment)})
@@ -725,9 +820,13 @@ def complete_appointment(request, appointment_id):
     appointment = get_object_or_404(Appointment.objects.select_related("member", "doctor__account", "requested_by"), pk=appointment_id, doctor=doctor)
     if appointment.status != Appointment.Status.ACCEPTED:
         raise ValidationError({"detail": "Only accepted appointments can be marked completed."})
+    previous_status = appointment.status
     appointment.status = Appointment.Status.COMPLETED
     appointment.completed_at = timezone.now()
     appointment.save(update_fields=["status", "completed_at", "updated_at"])
+    _record_appointment_history(appointment, request.user, "completed", previous_status, appointment.status)
+    _audit(request.user, "appointment_completed", member=appointment.member, doctor=doctor,
+           metadata={"appointment_id": appointment.pk})
     _notify(appointment.requested_by, "appointment_completed", "Appointment completed", "Your appointment has been marked completed.", appointment=appointment)
     return Response({"appointment": _appointment_data(appointment)})
 
@@ -908,3 +1007,214 @@ def cancel_chat_request(request, chat_request_id):
     _notify(recipient, "chat_cancelled", "Online consultation cancelled", "An online consultation request has been cancelled.", chat_request=chat)
     _audit(request.user, "doctor_chat_request_cancelled", member=chat.member, doctor=chat.doctor, metadata={"chat_request_id": chat.pk})
     return Response({"chat_request": _chat_request_data(chat)})
+
+
+# ---------------------------------------------------------------------------
+# Super-admin dashboard APIs. All endpoints require the persisted super_admin role.
+# ---------------------------------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_dashboard_overview(request):
+    caller_email(request)
+    _require_staff(request.user, super_admin=True)
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    patients = Account.objects.filter(role=Account.Role.PATIENT)
+    doctors = DoctorProfile.objects.select_related("account")
+    applications = DoctorApplication.objects.all()
+    appointments_qs = Appointment.objects.all()
+    status_counts = {key: 0 for key in Appointment.Status.values}
+    for row in appointments_qs.values("status").annotate(total=Count("id")):
+        status_counts[row["status"]] = row["total"]
+    recent_audit = DoctorAuditLog.objects.select_related("actor", "doctor").order_by("-created_at", "-id")[:10]
+    recent_appointments = AppointmentHistory.objects.select_related("actor", "appointment").order_by("-created_at", "-id")[:10]
+    activity = [{
+        "id": f"audit-{item.pk}", "source": "admin_audit", "action": item.action,
+        "actor": item.actor.email, "created_at": item.created_at.isoformat(),
+        "doctor_id": item.doctor_id, "metadata": item.metadata,
+    } for item in recent_audit]
+    activity.extend([{
+        "id": f"appointment-{item.pk}", "source": "appointment_history", "action": item.action,
+        "actor": item.actor.email if item.actor_id else None, "created_at": item.created_at.isoformat(),
+        "appointment_id": item.appointment_id, "from_status": item.from_status,
+        "to_status": item.to_status, "reason": item.reason,
+    } for item in recent_appointments])
+    activity.sort(key=lambda x: x["created_at"], reverse=True)
+    return Response({
+        "totals": {
+            "patients": patients.count(),
+            "doctors": doctors.count(),
+            "pending_applications": applications.filter(status=DoctorApplication.Status.PENDING).count(),
+        },
+        "doctors_by_status": {row["status"]: row["total"] for row in doctors.values("status").annotate(total=Count("id"))},
+        "applications_by_status": {row["status"]: row["total"] for row in applications.values("status").annotate(total=Count("id"))},
+        "appointments_by_status": status_counts,
+        "appointments_today": appointments_qs.filter(preferred_at__date=now.date()).count(),
+        "appointments_this_month": appointments_qs.filter(created_at__gte=month_start).count(),
+        "recent_activity": activity[:10],
+        "pending_application_alerts": [{
+            "id": app.pk, "name": app.full_name, "email": app.email,
+            "specialty": app.specialty, "created_at": app.created_at.isoformat(),
+        } for app in applications.filter(status=DoctorApplication.Status.PENDING).order_by("created_at", "id")[:10]],
+        "generated_at": now.isoformat(),
+    })
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def admin_doctors(request):
+    caller_email(request)
+    _require_staff(request.user, super_admin=True)
+    if request.method == "POST":
+        doctor_id = request.data.get("doctor_id")
+        action = str(request.data.get("action", "")).strip().lower()
+        reason = str(request.data.get("reason", "")).strip()[:1000]
+        if action not in ("suspend", "reactivate"):
+            raise ValidationError({"action": "Use suspend or reactivate."})
+        with transaction.atomic():
+            profile = get_object_or_404(DoctorProfile.objects.select_for_update().select_related("account"), pk=doctor_id)
+            previous = profile.status
+            if action == "suspend":
+                if previous != DoctorProfile.Status.APPROVED:
+                    raise ValidationError({"detail": "Only approved doctors can be suspended."})
+                profile.status = DoctorProfile.Status.SUSPENDED
+                profile.is_available = False
+            else:
+                if previous != DoctorProfile.Status.SUSPENDED:
+                    raise ValidationError({"detail": "Only suspended doctors can be reactivated."})
+                profile.status = DoctorProfile.Status.APPROVED
+            profile.save(update_fields=["status", "is_available", "updated_at"])
+            _audit(request.user, f"doctor_{action}ed" if action == "suspend" else "doctor_reactivated",
+                   doctor=profile, metadata={"previous_status": previous, "new_status": profile.status, "reason": reason})
+        return Response({"doctor": _admin_doctor_data(profile), "action": action})
+
+    qs = DoctorProfile.objects.select_related("account").all()
+    query = str(request.query_params.get("q", "")).strip()
+    state = str(request.query_params.get("status", "")).strip().lower()
+    available = str(request.query_params.get("available", "")).strip().lower()
+    if query:
+        qs = qs.filter(Q(full_name__icontains=query) | Q(account__email__icontains=query) |
+                       Q(specialty__icontains=query) | Q(registration_number__icontains=query) |
+                       Q(doctor_id__icontains=query))
+    if state:
+        if state not in DoctorProfile.Status.values:
+            raise ValidationError({"status": "Invalid doctor status."})
+        qs = qs.filter(status=state)
+    if available in ("true", "false"):
+        qs = qs.filter(is_available=(available == "true"))
+    return Response({"doctors": [_admin_doctor_data(item) for item in qs.order_by("full_name", "id")[:200]]})
+
+
+def _admin_doctor_data(profile):
+    return {
+        "id": profile.pk, "doctor_id": profile.doctor_id, "account_id": profile.account_id,
+        "email": profile.account.email, "full_name": profile.full_name, "specialty": profile.specialty,
+        "qualifications": profile.qualifications, "registration_number": profile.registration_number,
+        "clinic_name": profile.clinic_name, "years_experience": profile.years_experience,
+        "status": profile.status, "is_available": profile.is_available,
+        "verified_at": profile.verified_at.isoformat() if profile.verified_at else None,
+        "created_at": profile.created_at.isoformat(), "updated_at": profile.updated_at.isoformat(),
+        "appointments_total": profile.appointments.count(),
+        "appointments_completed": profile.appointments.filter(status=Appointment.Status.COMPLETED).count(),
+        "appointments_pending": profile.appointments.filter(status=Appointment.Status.REQUESTED).count(),
+    }
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_patients(request):
+    caller_email(request)
+    _require_staff(request.user, super_admin=True)
+    qs = Account.objects.filter(role=Account.Role.PATIENT).annotate(family_profile_count=Count("members", distinct=True))
+    query = str(request.query_params.get("q", "")).strip()
+    if query:
+        qs = qs.filter(email__icontains=query)
+    patients = [{
+        "id": account.pk, "email": account.email,
+        "created_at": account.created_at.isoformat(),
+        "account_status": "registered",
+        "family_profile_count": account.family_profile_count,
+    } for account in qs.order_by("-created_at", "-id")[:200]]
+    return Response({"patients": patients})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_analytics(request):
+    caller_email(request)
+    _require_staff(request.user, super_admin=True)
+    months = []
+    now = timezone.now()
+    for offset in range(5, -1, -1):
+        year = now.year
+        month = now.month - offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        months.append((year, month))
+    first_year, first_month = months[0]
+    start = now.replace(year=first_year, month=first_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+    def monthly_counts(qs, field):
+        counts = {}
+        for row in qs.filter(**{f"{field}__gte": start}).annotate(month=TruncMonth(field)).values("month").annotate(total=Count("id")):
+            counts[row["month"].strftime("%Y-%m")] = row["total"]
+        return [{"month": f"{year:04d}-{month:02d}", "count": counts.get(f"{year:04d}-{month:02d}", 0)} for year, month in months]
+    return Response({
+        "period": "last_6_calendar_months",
+        "patient_registrations": monthly_counts(Account.objects.filter(role=Account.Role.PATIENT), "created_at"),
+        "doctor_registrations": monthly_counts(DoctorProfile.objects.all(), "created_at"),
+        "doctor_applications": monthly_counts(DoctorApplication.objects.all(), "created_at"),
+        "appointment_bookings": monthly_counts(Appointment.objects.all(), "created_at"),
+        "generated_at": now.isoformat(),
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_audit_log(request):
+    caller_email(request)
+    _require_staff(request.user, super_admin=True)
+    action = str(request.query_params.get("action", "")).strip()
+    actor = str(request.query_params.get("actor", "")).strip()
+    limit_raw = request.query_params.get("limit", "100")
+    try:
+        limit = min(max(int(limit_raw), 1), 200)
+    except (TypeError, ValueError):
+        raise ValidationError({"limit": "Use an integer from 1 to 200."})
+    logs = DoctorAuditLog.objects.select_related("actor", "doctor").all()
+    if action:
+        logs = logs.filter(action__icontains=action)
+    if actor:
+        logs = logs.filter(actor__email__icontains=actor)
+    audit_items = [{
+        "id": item.pk, "source": "admin_audit", "actor": item.actor.email,
+        "action": item.action, "created_at": item.created_at.isoformat(),
+        "doctor_id": item.doctor_id, "member_id": item.member_id, "metadata": item.metadata,
+    } for item in logs.order_by("-created_at", "-id")[:limit]]
+    history = AppointmentHistory.objects.select_related("actor").all()
+    if actor:
+        history = history.filter(actor__email__icontains=actor)
+    if action:
+        history = history.filter(action__icontains=action)
+    audit_items.extend([{
+        "id": item.pk, "source": "appointment_history", "actor": item.actor.email if item.actor_id else None,
+        "action": item.action, "created_at": item.created_at.isoformat(),
+        "appointment_id": item.appointment_id, "from_status": item.from_status,
+        "to_status": item.to_status, "reason": item.reason, "metadata": item.metadata,
+    } for item in history.order_by("-created_at", "-id")[:limit]])
+    audit_items.sort(key=lambda item: item["created_at"], reverse=True)
+    return Response({"events": audit_items[:limit], "limit": limit})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def admin_appointment_history(request, appointment_id):
+    caller_email(request)
+    _require_staff(request.user, super_admin=True)
+    get_object_or_404(Appointment, pk=appointment_id)
+    items = AppointmentHistory.objects.filter(appointment_id=appointment_id).select_related("actor")
+    return Response({"history": [{
+        "id": item.pk, "actor": item.actor.email if item.actor_id else None,
+        "action": item.action, "from_status": item.from_status, "to_status": item.to_status,
+        "reason": item.reason, "metadata": item.metadata, "created_at": item.created_at.isoformat(),
+    } for item in items]})
