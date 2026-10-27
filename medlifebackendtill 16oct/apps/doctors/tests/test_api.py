@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import time, timedelta
 import hashlib
 import secrets
 
@@ -271,6 +271,31 @@ class DoctorApiTests(TestCase):
         history = self.doctor_client.get(f"{url}revisions/")
         self.assertEqual(history.status_code, 200, history.json())
         self.assertEqual(len(history.json()["revisions"]), 1)
+
+    def test_super_admin_can_review_and_intervene_in_doctor_availability(self):
+        admin = Account.objects.create(email="availability-admin@example.com", role=Account.Role.SUPER_ADMIN)
+        admin_client = APIClient()
+        admin_client.credentials(**bearer_for(admin))
+        slot = DoctorAvailabilitySlot.objects.create(
+            doctor=self.doctor, weekday=2, start_time=time(9, 0), end_time=time(12, 0), is_active=True,
+        )
+
+        reviewed = admin_client.get("/medlife/doctor/admin/availability/")
+        self.assertEqual(reviewed.status_code, 200, reviewed.json())
+        doctor_data = next(item for item in reviewed.json()["doctors"] if item["doctor_id"] == self.doctor.pk)
+        self.assertEqual(doctor_data["slots"][0]["id"], slot.pk)
+
+        changed = admin_client.post("/medlife/doctor/admin/availability/", {
+            "action": "set_slot_active", "doctor_id": self.doctor.pk,
+            "slot_id": slot.pk, "is_active": False, "reason": "Temporary schedule adjustment",
+        }, format="json")
+        self.assertEqual(changed.status_code, 200, changed.json())
+        slot.refresh_from_db()
+        self.assertFalse(slot.is_active)
+
+    def test_patient_cannot_use_super_admin_availability_controls(self):
+        response = self.patient_client.get("/medlife/doctor/admin/availability/")
+        self.assertEqual(response.status_code, 403)
 
     def test_super_admin_can_cancel_an_appointment(self):
         admin = Account.objects.create(email="cancel-admin@example.com", role=Account.Role.SUPER_ADMIN)

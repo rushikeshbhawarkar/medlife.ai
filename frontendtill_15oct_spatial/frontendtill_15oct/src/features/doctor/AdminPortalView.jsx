@@ -10,6 +10,9 @@ import {
   downloadAdminApplicationDocument,
   getAdminDoctors,
   manageAdminDoctor,
+  getAdminAvailability,
+  setAdminDoctorAvailability,
+  setAdminSlotActive,
   getAdminPatients,
   getAdminAppointments,
   getAdminAppointmentHistory,
@@ -18,6 +21,8 @@ import {
   sendDoctorInvitation,
   getAdminAnalytics,
   getAdminAuditLog,
+  getRescheduleRequests,
+  decideRescheduleRequest,
 } from '../../services/api.js';
 import {
   LayoutDashboard,
@@ -39,6 +44,8 @@ import {
   RefreshCw,
   Ban,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Eye,
   AlertTriangle,
   AlertCircle,
@@ -46,6 +53,16 @@ import {
   Info,
 } from 'lucide-react';
 import './doctor.css';
+
+const WEEKDAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 
 export default function AdminPortalView({ email, initialTab = 'overview', onTabChange }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -418,12 +435,180 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
     }
   }, [auditActionFilter, auditActorFilter, auditLimit]);
 
+  // ---------------------------------------------------------------------------
+  // TAB: DOCTOR AVAILABILITY & WEEKLY SLOTS
+  // ---------------------------------------------------------------------------
+  const [availabilityDoctors, setAvailabilityDoctors] = useState([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [availSearch, setAvailSearch] = useState('');
+  const [availStatusFilter, setAvailStatusFilter] = useState('');
+  const [availStateFilter, setAvailStateFilter] = useState('');
+  const [expandedDoctorIds, setExpandedDoctorIds] = useState(new Set());
+
+  // Mutation states
+  const [submittingDoctorAvailId, setSubmittingDoctorAvailId] = useState(null);
+  const [submittingSlotId, setSubmittingSlotId] = useState(null);
+  const [doctorAvailModalData, setDoctorAvailModalData] = useState(null);
+  const [doctorAvailReason, setDoctorAvailReason] = useState('');
+  const [slotActionError, setSlotActionError] = useState({});
+
+  const loadAvailabilityData = useCallback(async () => {
+    try {
+      setLoadingAvailability(true);
+      setGlobalError('');
+      const params = {};
+      if (availStatusFilter) params.status = availStatusFilter;
+      const data = await getAdminAvailability(params);
+      setAvailabilityDoctors(data?.doctors || []);
+    } catch (err) {
+      setGlobalError(err.message || 'Unable to load doctor availability overview.');
+    } finally {
+      setLoadingAvailability(false);
+    }
+  }, [availStatusFilter]);
+
+  const toggleExpandDoctor = (docId) => {
+    setExpandedDoctorIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(docId)) next.delete(docId);
+      else next.add(docId);
+      return next;
+    });
+  };
+
+  // Handle overall availability toggle submit
+  const handleDoctorAvailSubmit = async (e) => {
+    e.preventDefault();
+    if (!doctorAvailModalData || submittingDoctorAvailId !== null) return;
+    const { doctor_id, doctor_name, current_avail } = doctorAvailModalData;
+    const targetAvail = !current_avail;
+
+    setSubmittingDoctorAvailId(doctor_id);
+    setGlobalError('');
+    setGlobalSuccess('');
+    try {
+      await setAdminDoctorAvailability(doctor_id, targetAvail, doctorAvailReason.trim());
+      setGlobalSuccess(
+        `Availability for Dr. ${doctor_name} has been set to ${targetAvail ? 'Available' : 'Unavailable'}.`
+      );
+      setDoctorAvailModalData(null);
+      setDoctorAvailReason('');
+      setAvailabilityDoctors((prev) =>
+        prev.map((d) => (d.doctor_id === doctor_id ? { ...d, is_available: targetAvail } : d))
+      );
+      setDoctors((prev) =>
+        prev.map((d) => (d.id === doctor_id ? { ...d, is_available: targetAvail } : d))
+      );
+      if (overviewData) loadOverview();
+    } catch (err) {
+      setGlobalError(err.message || 'Unable to update doctor availability.');
+    } finally {
+      setSubmittingDoctorAvailId(null);
+    }
+  };
+
+  // Handle individual slot active toggle
+  const handleSlotToggle = async (doctor_id, slot, currentActive) => {
+    const targetActive = !currentActive;
+    setSubmittingSlotId(slot.id);
+    setSlotActionError((prev) => ({ ...prev, [doctor_id]: '' }));
+    setGlobalError('');
+    setGlobalSuccess('');
+    try {
+      await setAdminSlotActive(doctor_id, slot.id, targetActive, 'Administrative schedule adjustment');
+      setGlobalSuccess(
+        `Slot (${WEEKDAYS[slot.weekday] ?? slot.weekday} ${slot.start_time}-${slot.end_time}) ${
+          targetActive ? 'activated' : 'deactivated'
+        } successfully.`
+      );
+      setAvailabilityDoctors((prev) =>
+        prev.map((d) => {
+          if (d.doctor_id !== doctor_id) return d;
+          return {
+            ...d,
+            slots: (d.slots || []).map((s) => (s.id === slot.id ? { ...s, is_active: targetActive } : s)),
+          };
+        })
+      );
+      if (overviewData) loadOverview();
+    } catch (err) {
+      setSlotActionError((prev) => ({
+        ...prev,
+        [doctor_id]: err.message || `Unable to ${targetActive ? 'activate' : 'deactivate'} slot.`,
+      }));
+    } finally {
+      setSubmittingSlotId(null);
+    }
+  };
+
+  const filteredAvailabilityDoctors = availabilityDoctors.filter((doc) => {
+    if (availSearch.trim()) {
+      const q = availSearch.trim().toLowerCase();
+      const matchName = (doc.doctor_name || '').toLowerCase().includes(q);
+      const matchEmail = (doc.doctor_email || '').toLowerCase().includes(q);
+      const matchId = String(doc.doctor_id).includes(q);
+      if (!matchName && !matchEmail && !matchId) return false;
+    }
+    if (availStateFilter === 'available' && !doc.is_available) return false;
+    if (availStateFilter === 'unavailable' && doc.is_available) return false;
+    return true;
+  });
+
+  // ---------------------------------------------------------------------------
+  // TAB: RESCHEDULING REQUESTS & INTERVENTION
+  // ---------------------------------------------------------------------------
+  const [rescheduleRequests, setRescheduleRequests] = useState([]);
+  const [loadingReschedules, setLoadingReschedules] = useState(false);
+  const [rescheduleStatusFilter, setRescheduleStatusFilter] = useState('pending');
+  const [selectedRescheduleAction, setSelectedRescheduleAction] = useState(null);
+  const [submittingRescheduleDecision, setSubmittingRescheduleDecision] = useState(false);
+
+  const loadRescheduleRequests = useCallback(async () => {
+    try {
+      setLoadingReschedules(true);
+      setGlobalError('');
+      const statusParam = rescheduleStatusFilter === 'all' ? '' : rescheduleStatusFilter;
+      const data = await getRescheduleRequests('admin', statusParam);
+      setRescheduleRequests(data?.reschedule_requests || []);
+    } catch (err) {
+      setGlobalError(err.message || 'Unable to load rescheduling requests.');
+    } finally {
+      setLoadingReschedules(false);
+    }
+  }, [rescheduleStatusFilter]);
+
+  const handleRescheduleDecisionSubmit = async () => {
+    if (!selectedRescheduleAction || submittingRescheduleDecision) return;
+    const { item, decision } = selectedRescheduleAction;
+
+    setSubmittingRescheduleDecision(true);
+    setGlobalError('');
+    setGlobalSuccess('');
+    try {
+      await decideRescheduleRequest(item.id, decision);
+      setGlobalSuccess(
+        `Rescheduling request #${item.id} (Appt #${item.appointment_id}) has been ${
+          decision === 'accept' ? 'accepted and rescheduled' : 'rejected'
+        }.`
+      );
+      setSelectedRescheduleAction(null);
+      loadRescheduleRequests();
+      if (overviewData) loadOverview();
+    } catch (err) {
+      setGlobalError(err.message || `Unable to ${decision} rescheduling request.`);
+    } finally {
+      setSubmittingRescheduleDecision(false);
+    }
+  };
+
   // Load data based on active tab
   useEffect(() => {
     if (activeTab === 'overview') loadOverview();
     if (activeTab === 'applications') loadApplications();
     if (activeTab === 'doctors') loadDoctors();
+    if (activeTab === 'availability') loadAvailabilityData();
     if (activeTab === 'appointments') loadAppointments();
+    if (activeTab === 'reschedules') loadRescheduleRequests();
     if (activeTab === 'patients') loadPatients();
     if (activeTab === 'invitations') loadInvitations();
     if (activeTab === 'analytics') loadAnalytics();
@@ -433,7 +618,9 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
     loadOverview,
     loadApplications,
     loadDoctors,
+    loadAvailabilityData,
     loadAppointments,
+    loadRescheduleRequests,
     loadPatients,
     loadInvitations,
     loadAnalytics,
@@ -468,7 +655,9 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
               if (activeTab === 'overview') loadOverview();
               else if (activeTab === 'applications') loadApplications();
               else if (activeTab === 'doctors') loadDoctors();
+              else if (activeTab === 'availability') loadAvailabilityData();
               else if (activeTab === 'appointments') loadAppointments();
+              else if (activeTab === 'reschedules') loadRescheduleRequests();
               else if (activeTab === 'patients') loadPatients();
               else if (activeTab === 'invitations') loadInvitations();
               else if (activeTab === 'analytics') loadAnalytics();
@@ -507,10 +696,25 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
           <UserCheck size={17} /> Doctors
         </button>
         <button
+          className={`doctor-tab-btn ${activeTab === 'availability' ? 'active' : ''}`}
+          onClick={() => handleTabSwitch('availability')}
+        >
+          <Clock size={17} /> Availability
+        </button>
+        <button
           className={`doctor-tab-btn ${activeTab === 'appointments' ? 'active' : ''}`}
           onClick={() => handleTabSwitch('appointments')}
         >
           <Calendar size={17} /> Appointments
+        </button>
+        <button
+          className={`doctor-tab-btn ${activeTab === 'reschedules' ? 'active' : ''}`}
+          onClick={() => handleTabSwitch('reschedules')}
+        >
+          <Calendar size={17} /> Reschedules
+          {overviewData?.pending_reschedule_requests ? (
+            <span className="doctor-badge-count">{overviewData.pending_reschedule_requests}</span>
+          ) : null}
         </button>
         <button
           className={`doctor-tab-btn ${activeTab === 'patients' ? 'active' : ''}`}
@@ -599,6 +803,50 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
                     <span className="admin-stat-sub">Month: {overviewData.appointments_this_month ?? 0}</span>
                   </div>
                 </div>
+
+                {overviewData.availability_summary && (
+                  <div
+                    className="admin-stat-card"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleTabSwitch('availability')}
+                    title="View and manage doctor availability"
+                  >
+                    <div className="admin-stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                      <Clock size={24} />
+                    </div>
+                    <div className="admin-stat-content">
+                      <span className="admin-stat-value">
+                        {overviewData.availability_summary?.available_doctors ?? 0}
+                      </span>
+                      <span className="admin-stat-label">Available Doctors</span>
+                      <span className="admin-stat-sub">
+                        Unavailable: {overviewData.availability_summary?.unavailable_doctors ?? 0} • Active Slots: {overviewData.availability_summary?.active_availability_slots ?? 0}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {overviewData.pending_reschedule_requests !== undefined && (
+                  <div
+                    className="admin-stat-card"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleTabSwitch('reschedules')}
+                    title="Review pending reschedule requests"
+                  >
+                    <div className="admin-stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                      <Calendar size={24} />
+                    </div>
+                    <div className="admin-stat-content">
+                      <span className="admin-stat-value">
+                        {overviewData.pending_reschedule_requests ?? 0}
+                      </span>
+                      <span className="admin-stat-label">Pending Reschedules</span>
+                      <span className="admin-stat-sub">
+                        {(overviewData.pending_reschedule_requests ?? 0) > 0 ? 'Requires review / decision' : 'All requests resolved'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Status Breakdown Section */}
@@ -1009,37 +1257,359 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
                         </span>
                       </td>
                       <td>
-                        {doc.status === 'approved' && (
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <Button
-                            variant="danger"
+                            variant="outline"
                             size="sm"
                             onClick={() => {
-                              setSelectedDoctorForAction(doc);
-                              setDoctorActionType('suspend');
-                              setActionReason('');
+                              setAvailSearch(doc.full_name);
+                              handleTabSwitch('availability');
                             }}
+                            title="View and oversee availability schedule"
                           >
-                            <Ban size={13} /> Suspend
+                            <Clock size={13} /> Availability
                           </Button>
-                        )}
-                        {doc.status === 'suspended' && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedDoctorForAction(doc);
-                              setDoctorActionType('reactivate');
-                              setActionReason('');
-                            }}
-                          >
-                            <CheckCircle2 size={13} /> Reactivate
-                          </Button>
-                        )}
+                          {doc.status === 'approved' && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedDoctorForAction(doc);
+                                setDoctorActionType('suspend');
+                                setActionReason('');
+                              }}
+                            >
+                              <Ban size={13} /> Suspend
+                            </Button>
+                          )}
+                          {doc.status === 'suspended' && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedDoctorForAction(doc);
+                                setDoctorActionType('reactivate');
+                                setActionReason('');
+                              }}
+                            >
+                              <CheckCircle2 size={13} /> Reactivate
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =======================================================================
+       * TAB: DOCTOR AVAILABILITY & WEEKLY SLOTS
+       * ======================================================================= */}
+      {activeTab === 'availability' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Notice & Context Bar */}
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              color: 'var(--text-primary)',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+            }}
+          >
+            <Info size={18} color="#3b82f6" />
+            <span>
+              <strong>Super Admin Availability Oversight:</strong> View and manage doctor consultation availability and weekly recurring slots. Only approved practitioners can be set to available or have availability slots activated. Initial slots are configured by doctors.
+            </span>
+          </div>
+
+          {/* Filter Toolbar */}
+          <div className="admin-filter-toolbar">
+            <div className="admin-filter-group">
+              <input
+                type="text"
+                className="admin-input-search"
+                placeholder="Filter doctor name, email, or ID..."
+                value={availSearch}
+                onChange={(e) => setAvailSearch(e.target.value)}
+              />
+              <select
+                className="admin-input-search"
+                value={availStatusFilter}
+                onChange={(e) => setAvailStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="approved">Approved</option>
+                <option value="suspended">Suspended</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <select
+                className="admin-input-search"
+                value={availStateFilter}
+                onChange={(e) => setAvailStateFilter(e.target.value)}
+              >
+                <option value="">All Availability</option>
+                <option value="available">Available Only</option>
+                <option value="unavailable">Unavailable Only</option>
+              </select>
+            </div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Showing {filteredAvailabilityDoctors.length} doctors
+            </span>
+          </div>
+
+          {loadingAvailability ? (
+            <Spinner />
+          ) : filteredAvailabilityDoctors.length === 0 ? (
+            <div className="doctor-empty-state">
+              <Clock size={48} />
+              <h3>No doctor availability records found</h3>
+              <p>No doctors match the selected availability and status filters.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {filteredAvailabilityDoctors.map((doc) => {
+                const isExpanded = expandedDoctorIds.has(doc.doctor_id);
+                const isSubmittingAvail = submittingDoctorAvailId === doc.doctor_id;
+                const isApproved = doc.doctor_status === 'approved';
+                const docError = slotActionError[doc.doctor_id];
+
+                return (
+                  <div
+                    key={doc.doctor_id}
+                    className="admin-section-card"
+                    style={{
+                      border: isExpanded ? '1px solid var(--border-strong)' : '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    {/* Doctor Summary Row */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div
+                          style={{
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 26, 60, 0.1)',
+                            color: 'var(--red-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '1.1rem',
+                          }}
+                        >
+                          {doc.doctor_name ? doc.doctor_name.charAt(0).toUpperCase() : 'D'}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                              {doc.doctor_name}
+                            </strong>
+                            <span className={`status-pill status-${doc.doctor_status}`}>
+                              {doc.doctor_status}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                color: doc.is_available ? 'var(--emerald)' : 'var(--text-muted)',
+                              }}
+                            >
+                              ● {doc.is_available ? 'Available for Consultations' : 'Currently Unavailable'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {doc.doctor_email} • Doctor ID #{doc.doctor_id}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        {/* Doctor availability toggle button */}
+                        {doc.is_available ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isSubmittingAvail}
+                            onClick={() => {
+                              setDoctorAvailModalData({
+                                doctor_id: doc.doctor_id,
+                                doctor_name: doc.doctor_name,
+                                doctor_email: doc.doctor_email,
+                                current_avail: true,
+                                doctor_status: doc.doctor_status,
+                              });
+                              setDoctorAvailReason('');
+                            }}
+                          >
+                            <Ban size={13} /> {isSubmittingAvail ? 'Updating...' : 'Disable Availability'}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={isSubmittingAvail || !isApproved}
+                            title={!isApproved ? 'Only an approved doctor can be marked available.' : 'Mark doctor available'}
+                            onClick={() => {
+                              setDoctorAvailModalData({
+                                doctor_id: doc.doctor_id,
+                                doctor_name: doc.doctor_name,
+                                doctor_email: doc.doctor_email,
+                                current_avail: false,
+                                doctor_status: doc.doctor_status,
+                              });
+                              setDoctorAvailReason('');
+                            }}
+                          >
+                            <CheckCircle2 size={13} /> {isSubmittingAvail ? 'Updating...' : 'Enable Availability'}
+                          </Button>
+                        )}
+
+                        {/* Expand/Collapse slots button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleExpandDoctor(doc.doctor_id)}
+                          title={isExpanded ? 'Hide weekly recurring slots' : 'Show weekly recurring slots'}
+                        >
+                          <Clock size={14} /> Schedule ({(doc.slots || []).length} slots){' '}
+                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Slot Action Error banner if any */}
+                    {docError && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <Banner variant="error">{docError}</Banner>
+                      </div>
+                    )}
+
+                    {/* Weekly Recurring Slots (when expanded) */}
+                    {isExpanded && (
+                      <div
+                        style={{
+                          marginTop: '0.75rem',
+                          paddingTop: '0.75rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.75rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                            Weekly Availability Slots ({(doc.slots || []).length})
+                          </h4>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            Active slots allow patient bookings during defined hours
+                          </span>
+                        </div>
+
+                        {(!doc.slots || doc.slots.length === 0) ? (
+                          <div
+                            style={{
+                              padding: '1rem',
+                              background: 'var(--bg-secondary)',
+                              borderRadius: '8px',
+                              fontSize: '0.85rem',
+                              color: 'var(--text-muted)',
+                              textAlign: 'center',
+                            }}
+                          >
+                            No recurring availability slots configured for this doctor.
+                          </div>
+                        ) : (
+                          <div className="admin-table-container">
+                            <table className="admin-table">
+                              <thead>
+                                <tr>
+                                  <th>Day</th>
+                                  <th>Time Window</th>
+                                  <th>Status</th>
+                                  <th>Last Updated</th>
+                                  <th>Slot Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {doc.slots.map((slot) => {
+                                  const isSlotSubmitting = submittingSlotId === slot.id;
+                                  return (
+                                    <tr key={slot.id}>
+                                      <td>
+                                        <strong>{WEEKDAYS[slot.weekday] ?? `Day ${slot.weekday}`}</strong>
+                                      </td>
+                                      <td>
+                                        <code>{slot.start_time} - {slot.end_time}</code>
+                                      </td>
+                                      <td>
+                                        <span
+                                          className={`status-pill ${
+                                            slot.is_active ? 'status-accepted' : 'status-rejected'
+                                          }`}
+                                          style={{ fontSize: '0.75rem' }}
+                                        >
+                                          {slot.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                          {slot.updated_at ? new Date(slot.updated_at).toLocaleString() : '—'}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        {slot.is_active ? (
+                                          <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            disabled={isSlotSubmitting}
+                                            onClick={() => handleSlotToggle(doc.doctor_id, slot, true)}
+                                            title="Deactivate this availability slot"
+                                          >
+                                            <Ban size={12} /> {isSlotSubmitting ? 'Updating...' : 'Deactivate'}
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            variant="primary"
+                                            size="sm"
+                                            disabled={isSlotSubmitting || !isApproved}
+                                            title={!isApproved ? 'Availability slots can only be activated for approved doctors' : 'Activate this availability slot'}
+                                            onClick={() => handleSlotToggle(doc.doctor_id, slot, false)}
+                                          >
+                                            <CheckCircle2 size={12} /> {isSlotSubmitting ? 'Updating...' : 'Activate'}
+                                          </Button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1210,6 +1780,170 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
                         <Button variant="secondary" size="sm" onClick={() => handleOpenHistory(appt.id)}>
                           <Clock size={13} /> History
                         </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =======================================================================
+       * TAB: RESCHEDULING REQUESTS & INTERVENTION
+       * ======================================================================= */}
+      {activeTab === 'reschedules' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Notice & Context Bar */}
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              color: 'var(--text-primary)',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+            }}
+          >
+            <Info size={18} color="#f59e0b" />
+            <span>
+              <strong>Administrative Reschedule Intervention:</strong> Super Admins can review pending appointment rescheduling proposals submitted by patients or doctors, resolve conflicts, and make authoritative decisions.
+            </span>
+          </div>
+
+          {/* Filter Toolbar */}
+          <div className="admin-filter-toolbar">
+            <div className="admin-filter-group">
+              <select
+                className="admin-input-search"
+                value={rescheduleStatusFilter}
+                onChange={(e) => setRescheduleStatusFilter(e.target.value)}
+              >
+                <option value="pending">Pending Requests Only</option>
+                <option value="all">All Rescheduling Requests</option>
+                <option value="accepted">Accepted Only</option>
+                <option value="rejected">Rejected Only</option>
+              </select>
+            </div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Total Requests: {rescheduleRequests.length}
+            </span>
+          </div>
+
+          {loadingReschedules ? (
+            <Spinner />
+          ) : rescheduleRequests.length === 0 ? (
+            <div className="doctor-empty-state">
+              <Calendar size={48} />
+              <h3>No rescheduling requests found</h3>
+              <p>No appointment reschedule proposals match the selected filter.</p>
+            </div>
+          ) : (
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Req ID</th>
+                    <th>Appt ID</th>
+                    <th>Patient Profile</th>
+                    <th>Doctor</th>
+                    <th>Current Scheduled Time</th>
+                    <th>Proposed New Time</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Requested By</th>
+                    <th>Super Admin Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rescheduleRequests.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>#{item.id}</strong>
+                      </td>
+                      <td>
+                        <strong>Appt #{item.appointment_id}</strong>
+                      </td>
+                      <td>
+                        <div>
+                          <strong>{item.member_name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Member #{item.member_id}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div>
+                          <strong>{item.doctor_name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Doc #{item.doctor_id}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {item.current_scheduled_at ? new Date(item.current_scheduled_at).toLocaleString() : '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            color: 'var(--red-primary)',
+                            background: 'rgba(255, 26, 60, 0.08)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          {item.proposed_at ? new Date(item.proposed_at).toLocaleString() : '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '240px' }}>
+                          {item.reason || <span style={{ color: 'var(--text-muted)' }}>No reason provided</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status-pill status-${item.status}`}>{item.status}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {item.requested_by}
+                        </span>
+                      </td>
+                      <td>
+                        {item.status === 'pending' ? (
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => setSelectedRescheduleAction({ item, decision: 'accept' })}
+                              title="Accept proposed appointment time"
+                            >
+                              <CheckCircle2 size={13} /> Accept
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setSelectedRescheduleAction({ item, decision: 'reject' })}
+                              title="Reject proposed reschedule"
+                            >
+                              <XCircle size={13} /> Reject
+                            </Button>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            Decided by: {item.decided_by || 'System'}
+                            {item.decided_at && (
+                              <div>{new Date(item.decided_at).toLocaleDateString()}</div>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -2004,6 +2738,128 @@ export default function AdminPortalView({ email, initialTab = 'overview', onTabC
             <Button variant="secondary" onClick={() => setSelectedMetaEvent(null)}>
               Close
             </Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 7. Doctor Availability Toggle Modal */}
+      {doctorAvailModalData && (
+        <Modal
+          title={`${doctorAvailModalData.current_avail ? 'Disable' : 'Enable'} Doctor Availability`}
+          subtitle={`Doctor: ${doctorAvailModalData.doctor_name} (${doctorAvailModalData.doctor_email}) • ID #${doctorAvailModalData.doctor_id}`}
+          onClose={() => {
+            setDoctorAvailModalData(null);
+            setDoctorAvailReason('');
+          }}
+        >
+          <form onSubmit={handleDoctorAvailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
+              {doctorAvailModalData.current_avail
+                ? 'Disabling availability will immediately prevent patients from booking new consultations with this doctor. Existing scheduled appointments remain unaffected.'
+                : 'Enabling availability will allow patients to book consultation appointments with this doctor according to their active weekly schedule.'}
+            </p>
+
+            {doctorAvailModalData.doctor_status !== 'approved' && !doctorAvailModalData.current_avail && (
+              <Banner variant="error">
+                Only an approved doctor can be marked available. Current status: {doctorAvailModalData.doctor_status}.
+              </Banner>
+            )}
+
+            <div className="form-group">
+              <label>Reason for Availability Change (Optional)</label>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="State the administrative rationale (recorded in audit log and sent to the doctor)..."
+                value={doctorAvailReason}
+                onChange={(e) => setDoctorAvailReason(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDoctorAvailModalData(null);
+                  setDoctorAvailReason('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant={doctorAvailModalData.current_avail ? 'danger' : 'primary'}
+                disabled={submittingDoctorAvailId !== null || (!doctorAvailModalData.current_avail && doctorAvailModalData.doctor_status !== 'approved')}
+              >
+                {submittingDoctorAvailId !== null
+                  ? 'Updating...'
+                  : doctorAvailModalData.current_avail
+                  ? 'Confirm Disable Availability'
+                  : 'Confirm Enable Availability'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* 8. Rescheduling Request Decision Modal */}
+      {selectedRescheduleAction && (
+        <Modal
+          title={`Confirm Reschedule Decision: ${selectedRescheduleAction.decision === 'accept' ? 'Accept Proposal' : 'Reject Proposal'}`}
+          subtitle={`Request #${selectedRescheduleAction.item.id} • Appt #${selectedRescheduleAction.item.appointment_id}`}
+          onClose={() => setSelectedRescheduleAction(null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
+              {selectedRescheduleAction.decision === 'accept'
+                ? 'Accepting this request will update the appointment scheduled time to the proposed time and notify both the patient and practitioner.'
+                : 'Rejecting this request will keep the appointment at its current scheduled time and notify both parties.'}
+            </p>
+
+            <div
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
+                padding: '0.85rem 1rem',
+                fontSize: '0.85rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.35rem',
+              }}
+            >
+              <div><strong>Patient Profile:</strong> {selectedRescheduleAction.item.member_name}</div>
+              <div><strong>Doctor:</strong> {selectedRescheduleAction.item.doctor_name}</div>
+              <div><strong>Current Scheduled Time:</strong> {new Date(selectedRescheduleAction.item.current_scheduled_at).toLocaleString()}</div>
+              <div><strong>Proposed New Time:</strong> <span style={{ color: 'var(--red-primary)', fontWeight: 700 }}>{new Date(selectedRescheduleAction.item.proposed_at).toLocaleString()}</span></div>
+              {selectedRescheduleAction.item.reason && (
+                <div><strong>Reason:</strong> {selectedRescheduleAction.item.reason}</div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSelectedRescheduleAction(null)}
+                disabled={submittingRescheduleDecision}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant={selectedRescheduleAction.decision === 'accept' ? 'primary' : 'danger'}
+                disabled={submittingRescheduleDecision}
+                onClick={handleRescheduleDecisionSubmit}
+              >
+                {submittingRescheduleDecision
+                  ? 'Processing...'
+                  : selectedRescheduleAction.decision === 'accept'
+                  ? 'Confirm & Reschedule'
+                  : 'Confirm Rejection'}
+              </Button>
+            </div>
           </div>
         </Modal>
       )}

@@ -216,6 +216,32 @@ export const manageAdminDoctor = (doctor_id, action, reason = '') =>
     body: { doctor_id, action, reason },
   });
 
+export const getAdminAvailability = (params = {}) =>
+  call('/doctor/admin/availability/', { params });
+
+export const setAdminDoctorAvailability = (doctor_id, is_available, reason = '') =>
+  call('/doctor/admin/availability/', {
+    method: 'POST',
+    body: {
+      action: 'set_doctor_availability',
+      doctor_id: Number(doctor_id),
+      is_available: Boolean(is_available),
+      ...(reason ? { reason } : {}),
+    },
+  });
+
+export const setAdminSlotActive = (doctor_id, slot_id, is_active, reason = '') =>
+  call('/doctor/admin/availability/', {
+    method: 'POST',
+    body: {
+      action: 'set_slot_active',
+      doctor_id: Number(doctor_id),
+      slot_id: Number(slot_id),
+      is_active: Boolean(is_active),
+      ...(reason ? { reason } : {}),
+    },
+  });
+
 export const getAdminPatients = (params = {}) =>
   call('/doctor/admin/patients/', { params });
 
