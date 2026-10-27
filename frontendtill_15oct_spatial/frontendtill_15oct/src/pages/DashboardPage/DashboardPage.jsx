@@ -57,7 +57,7 @@ export default function DashboardPage({ email, onSignOut }) {
   // User identity & role state: 'super_admin' | 'doctor' | 'patient'
   const [accountRole, setAccountRole] = useState('patient');
   const [adminTab, setAdminTab] = useState('overview');
-  const [doctorTab, setDoctorTab] = useState('requests');
+  const [doctorTab, setDoctorTab] = useState('overview');
 
   // View state: 'health' | 'consultation' | 'doctor_workspace' | 'admin_portal'
   const [currentView, setCurrentView] = useState('health');

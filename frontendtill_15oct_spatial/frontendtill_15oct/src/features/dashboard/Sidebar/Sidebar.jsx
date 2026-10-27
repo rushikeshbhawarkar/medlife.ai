@@ -202,6 +202,22 @@ export default function Sidebar({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px', flex: '1 1 auto' }}>
             <button
               type="button"
+              className={`member-choice ${currentView === 'doctor_workspace' && doctorTab === 'overview' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectDoctorTab) onSelectDoctorTab('overview');
+                else if (onSelectView) onSelectView('doctor_workspace');
+                if (open) onClose();
+              }}
+            >
+              <LayoutDashboard size={18} color="var(--red-primary)" />
+              <span>
+                <strong>Workspace Overview</strong>
+                <small>Summary & statistics</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
               className={`member-choice ${currentView === 'doctor_workspace' && doctorTab === 'requests' ? 'member-selected' : ''}`}
               onClick={() => {
                 if (onSelectDoctorTab) onSelectDoctorTab('requests');
@@ -228,7 +244,55 @@ export default function Sidebar({
               <Calendar size={18} color="var(--emerald)" />
               <span>
                 <strong>Upcoming Appointments</strong>
-                <small>Sessions & clinical notes</small>
+                <small>Sessions & notes</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'doctor_workspace' && doctorTab === 'reschedule' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectDoctorTab) onSelectDoctorTab('reschedule');
+                else if (onSelectView) onSelectView('doctor_workspace');
+                if (open) onClose();
+              }}
+            >
+              <Activity size={18} color="var(--blue-500, #3b82f6)" />
+              <span>
+                <strong>Reschedule Requests</strong>
+                <small>Proposed time changes</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'doctor_workspace' && doctorTab === 'patients' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectDoctorTab) onSelectDoctorTab('patients');
+                else if (onSelectView) onSelectView('doctor_workspace');
+                if (open) onClose();
+              }}
+            >
+              <Users size={18} color="var(--purple-500, #a855f7)" />
+              <span>
+                <strong>Assigned Patients</strong>
+                <small>Medical records & consent</small>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`member-choice ${currentView === 'doctor_workspace' && doctorTab === 'availability' ? 'member-selected' : ''}`}
+              onClick={() => {
+                if (onSelectDoctorTab) onSelectDoctorTab('availability');
+                else if (onSelectView) onSelectView('doctor_workspace');
+                if (open) onClose();
+              }}
+            >
+              <Clock size={18} color="var(--cyan-500, #06b6d4)" />
+              <span>
+                <strong>Doctor Availability</strong>
+                <small>Weekly schedule slots</small>
               </span>
             </button>
 
@@ -260,7 +324,7 @@ export default function Sidebar({
               <BriefcaseMedical size={18} />
               <span>
                 <strong>Doctor Profile</strong>
-                <small>Schedule & fees</small>
+                <small>Clinical details & bio</small>
               </span>
             </button>
           </div>

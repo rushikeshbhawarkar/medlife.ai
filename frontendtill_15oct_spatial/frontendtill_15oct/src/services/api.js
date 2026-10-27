@@ -260,9 +260,30 @@ export const revokeAccessGrant = (grantId) =>
 export const getSharedRecords = (memberId) =>
   call(`/doctor/shared-records/${memberId}/`);
 
-export const getAppointments = (role = 'patient', status = '') =>
+export const getDoctorDashboardOverview = () =>
+  call('/doctor/dashboard/');
+
+export const getDoctorPatients = () =>
+  call('/doctor/patients/');
+
+export const getDoctorAvailability = () =>
+  call('/doctor/availability/');
+
+export const createDoctorAvailabilitySlot = ({ weekday, start_time, end_time }) =>
+  call('/doctor/availability/', {
+    method: 'POST',
+    body: { weekday: Number(weekday), start_time, end_time },
+  });
+
+export const deleteDoctorAvailabilitySlot = (slotId) =>
+  call('/doctor/availability/', {
+    method: 'DELETE',
+    params: { slot_id: slotId },
+  });
+
+export const getAppointments = (role = 'patient', status = '', params = {}) =>
   call('/doctor/appointments/', {
-    params: { role, ...(status ? { status } : {}) },
+    params: { role, ...(status ? { status } : {}), ...params },
   });
 
 export const requestAppointment = (data) =>
@@ -283,14 +304,69 @@ export const cancelAppointment = (appointmentId, reason = '') =>
 export const completeAppointment = (appointmentId) =>
   call(`/doctor/appointments/${appointmentId}/complete/`, { method: 'POST' });
 
+export const requestAppointmentReschedule = (appointmentId, proposed_at, reason = '') =>
+  call(`/doctor/appointments/${appointmentId}/reschedule/`, {
+    method: 'POST',
+    body: { proposed_at, reason },
+  });
+
+export const getRescheduleRequests = (role = 'doctor', status = '') =>
+  call('/doctor/reschedule-requests/', {
+    params: { role, ...(status ? { status } : {}) },
+  });
+
+export const decideRescheduleRequest = (requestId, decision) =>
+  call(`/doctor/reschedule-requests/${requestId}/decision/`, {
+    method: 'POST',
+    body: { decision },
+  });
+
 export const getConsultationNote = (appointmentId) =>
   call(`/doctor/appointments/${appointmentId}/notes/`);
 
-export const saveConsultationNote = (appointmentId, content) =>
-  call(`/doctor/appointments/${appointmentId}/notes/`, {
+export const saveConsultationNote = (appointmentId, payload) => {
+  const body = typeof payload === 'string' ? { content: payload, action: 'save' } : payload;
+  return call(`/doctor/appointments/${appointmentId}/notes/`, {
     method: 'POST',
-    body: { content },
+    body,
   });
+};
+
+export const getConsultationNoteRevisions = (appointmentId) =>
+  call(`/doctor/appointments/${appointmentId}/notes/revisions/`);
+
+export const downloadConsultationSummary = async (
+  appointmentId,
+  suggestedFilename = `medlife-consultation-${appointmentId}.txt`
+) => {
+  const token = getAccessToken();
+  const endpointUrl = new URL(
+    `${BASE}/doctor/appointments/${appointmentId}/summary/`,
+    window.location.href
+  );
+  const res = await fetch(endpointUrl, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let msg = 'Failed to download consultation summary.';
+    try {
+      const errJson = await res.json();
+      msg = errJson.detail || errJson.error || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  const disp = res.headers.get('Content-Disposition') || '';
+  const match = disp.match(/filename="?([^";]+)"?/);
+  link.download = match ? match[1] : suggestedFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(blobUrl);
+};
 
 export const getChatRequests = (role = 'patient', status = '') =>
   call('/doctor/chat-requests/', {
@@ -308,6 +384,9 @@ export const decideChatRequest = (chatRequestId, decision) =>
 
 export const cancelChatRequest = (chatRequestId) =>
   call(`/doctor/chat-requests/${chatRequestId}/cancel/`, { method: 'POST' });
+
+export const closeChatRequest = (chatRequestId) =>
+  call(`/doctor/chat-requests/${chatRequestId}/close/`, { method: 'POST' });
 
 export const getChatMessages = (chatRequestId) =>
   call(`/doctor/chat-requests/${chatRequestId}/messages/`);

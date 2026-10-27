@@ -10,7 +10,11 @@ from apps.accounts.models import Account
 from apps.accounts.tokens import password_fingerprint
 from django.core import signing
 from apps.members.models import FamilyMember
-from apps.doctors.models import Appointment, DoctorAccessGrant, DoctorApplication, DoctorAccountActivation, DoctorInvitation, DoctorProfile
+from apps.doctors.models import (
+    Appointment, AppointmentRescheduleRequest, ConsultationNote, DoctorAccessGrant,
+    DoctorApplication, DoctorAccountActivation, DoctorAvailabilitySlot, DoctorChatRequest,
+    DoctorInvitation, DoctorProfile,
+)
 
 
 def bearer_for(account):
@@ -214,3 +218,79 @@ class DoctorApiTests(TestCase):
         self.assertEqual(submitted.status_code, 400)
         self.patient.refresh_from_db()
         self.assertEqual(self.patient.role, Account.Role.PATIENT)
+
+    def test_doctor_dashboard_overview_returns_appointment_and_chat_counts(self):
+        response = self.doctor_client.get("/medlife/doctor/dashboard/")
+        self.assertEqual(response.status_code, 200, response.json())
+        self.assertIn("pending_appointment_requests", response.json()["counts"])
+        self.assertIn("pending_chat_requests", response.json()["counts"])
+
+    def test_doctor_can_manage_weekly_availability_slots(self):
+        response = self.doctor_client.post("/medlife/doctor/availability/", {
+            "weekday": 1, "start_time": "09:00", "end_time": "12:00",
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.json())
+        self.assertEqual(DoctorAvailabilitySlot.objects.filter(doctor=self.doctor).count(), 1)
+        overlap = self.doctor_client.post("/medlife/doctor/availability/", {
+            "weekday": 1, "start_time": "11:00", "end_time": "13:00",
+        }, format="json")
+        self.assertEqual(overlap.status_code, 400)
+
+    def test_patient_can_request_reschedule_and_doctor_must_decide(self):
+        grant = DoctorAccessGrant.objects.create(member=self.member, doctor=self.doctor,
+            granted_by=self.patient, scopes=["profile", "consultation_notes"], active=True)
+        appointment = Appointment.objects.create(member=self.member, doctor=self.doctor,
+            requested_by=self.patient, preferred_at=timezone.now() + timedelta(days=3),
+            scheduled_at=timezone.now() + timedelta(days=3), status=Appointment.Status.ACCEPTED)
+        proposed = (timezone.now() + timedelta(days=5)).isoformat()
+        requested = self.patient_client.post(f"/medlife/doctor/appointments/{appointment.pk}/reschedule/",
+            {"proposed_at": proposed, "reason": "Schedule conflict"}, format="json")
+        self.assertEqual(requested.status_code, 201, requested.json())
+        request_id = requested.json()["reschedule_request"]["id"]
+        decided = self.doctor_client.post(f"/medlife/doctor/reschedule-requests/{request_id}/decision/",
+            {"decision": "accept"}, format="json")
+        self.assertEqual(decided.status_code, 200, decided.json())
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.status, Appointment.Status.ACCEPTED)
+        self.assertEqual(appointment.scheduled_at.isoformat(), proposed)
+
+    def test_finalized_consultation_note_amendment_preserves_revision(self):
+        DoctorAccessGrant.objects.create(member=self.member, doctor=self.doctor,
+            granted_by=self.patient, scopes=["profile", "consultation_notes"], active=True)
+        appointment = Appointment.objects.create(member=self.member, doctor=self.doctor,
+            requested_by=self.patient, preferred_at=timezone.now() + timedelta(days=1),
+            scheduled_at=timezone.now() + timedelta(days=1), status=Appointment.Status.ACCEPTED)
+        url = f"/medlife/doctor/appointments/{appointment.pk}/notes/"
+        created = self.doctor_client.post(url, {"action": "finalize", "sections": {
+            "symptoms": "Headache", "assessment": "Needs follow-up"}}, format="json")
+        self.assertEqual(created.status_code, 201, created.json())
+        amended = self.doctor_client.post(url, {"action": "amend", "sections": {
+            "symptoms": "Headache for two days", "assessment": "Needs follow-up"}}, format="json")
+        self.assertEqual(amended.status_code, 200, amended.json())
+        self.assertEqual(amended.json()["revision_count"], 1)
+        history = self.doctor_client.get(f"{url}revisions/")
+        self.assertEqual(history.status_code, 200, history.json())
+        self.assertEqual(len(history.json()["revisions"]), 1)
+
+    def test_super_admin_can_cancel_an_appointment(self):
+        admin = Account.objects.create(email="cancel-admin@example.com", role=Account.Role.SUPER_ADMIN)
+        appointment = Appointment.objects.create(member=self.member, doctor=self.doctor,
+            requested_by=self.patient, preferred_at=timezone.now() + timedelta(days=2))
+        admin_client = APIClient()
+        admin_client.credentials(**bearer_for(admin))
+        response = admin_client.post(f"/medlife/doctor/appointments/{appointment.pk}/cancel/",
+            {"reason": "Administrative cancellation"}, format="json")
+        self.assertEqual(response.status_code, 200, response.json())
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.status, Appointment.Status.CANCELLED)
+
+    def test_accepted_chat_can_be_closed_and_history_read(self):
+        DoctorAccessGrant.objects.create(member=self.member, doctor=self.doctor,
+            granted_by=self.patient, scopes=["profile"], active=True)
+        chat = DoctorChatRequest.objects.create(member=self.member, doctor=self.doctor,
+            requested_by=self.patient, status=DoctorChatRequest.Status.ACCEPTED)
+        closed = self.doctor_client.post(f"/medlife/doctor/chat-requests/{chat.pk}/close/", {}, format="json")
+        self.assertEqual(closed.status_code, 200, closed.json())
+        history = self.doctor_client.get(f"/medlife/doctor/chat-requests/{chat.pk}/messages/")
+        self.assertEqual(history.status_code, 200, history.json())
+
