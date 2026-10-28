@@ -138,6 +138,9 @@ export const deleteDocument = (id) => call(`/documents/${id}/`, { method: 'DELET
 export const getPublicDoctors = (specialty) =>
   call('/doctors/', { params: specialty ? { specialty } : {}, auth: false });
 
+export const getPublicDoctorAvailability = (doctorId) =>
+  call(`/doctors/${doctorId}/availability/`, { auth: false });
+
 export const getDoctorProfile = () => call('/doctor/profile/');
 
 export const updateDoctorProfile = (data) =>

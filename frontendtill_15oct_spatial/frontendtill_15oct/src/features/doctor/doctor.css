@@ -940,3 +940,59 @@
   margin-top: 2px;
 }
 
+/* Patient Availability Slots & Rescheduling UI */
+.availability-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.availability-slot-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.825rem;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.availability-slot-btn:hover {
+  border-color: var(--red-primary);
+  background: var(--bg-tertiary);
+  color: var(--red-primary);
+}
+
+.availability-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.availability-notice.info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.availability-notice.warning {
+  background: var(--warning-light);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+}
+
+.reschedule-banner-box {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  margin-top: 0.25rem;
+}
+

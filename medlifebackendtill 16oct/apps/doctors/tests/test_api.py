@@ -319,3 +319,81 @@ class DoctorApiTests(TestCase):
         history = self.doctor_client.get(f"/medlife/doctor/chat-requests/{chat.pk}/messages/")
         self.assertEqual(history.status_code, 200, history.json())
 
+
+
+    def test_public_doctor_availability_returns_only_active_slots(self):
+        active = DoctorAvailabilitySlot.objects.create(
+            doctor=self.doctor, weekday=1, start_time=time(9, 0), end_time=time(12, 0), is_active=True,
+        )
+        DoctorAvailabilitySlot.objects.create(
+            doctor=self.doctor, weekday=2, start_time=time(13, 0), end_time=time(15, 0), is_active=False,
+        )
+        response = APIClient().get(f"/medlife/doctors/{self.doctor.pk}/availability/")
+        self.assertEqual(response.status_code, 200, response.json())
+        payload = response.json()
+        self.assertTrue(payload["has_configured_slots"])
+        self.assertEqual([slot["id"] for slot in payload["slots"]], [active.pk])
+
+    def test_disabled_availability_slots_do_not_allow_booking(self):
+        DoctorAvailabilitySlot.objects.create(
+            doctor=self.doctor, weekday=1, start_time=time(9, 0), end_time=time(12, 0), is_active=False,
+        )
+        # Tuesday at 10:00 in the application's current timezone.
+        future = timezone.now() + timedelta(days=7)
+        target = future.replace(hour=10, minute=0, second=0, microsecond=0)
+        while target.weekday() != 1 or target <= timezone.now():
+            target += timedelta(days=1)
+        response = self.patient_client.post("/medlife/doctor/appointments/", {
+            "member_id": self.member.pk,
+            "doctor_id": self.doctor.pk,
+            "preferred_at": target.isoformat(),
+            "reason": "Routine consultation",
+            "consent_scopes": ["profile"],
+        }, format="json")
+        self.assertEqual(response.status_code, 400, response.json())
+        self.assertIn("preferred_at", response.json())
+
+    def test_patient_appointment_list_includes_own_booking_reason_and_note(self):
+        appointment = Appointment.objects.create(
+            member=self.member, doctor=self.doctor, requested_by=self.patient,
+            preferred_at=timezone.now() + timedelta(days=2),
+            reason="Routine consultation", patient_note="Please call if running late",
+        )
+        response = self.patient_client.get("/medlife/doctor/appointments/?role=patient")
+        self.assertEqual(response.status_code, 200, response.json())
+        item = next(x for x in response.json()["appointments"] if x["id"] == appointment.pk)
+        self.assertEqual(item["reason"], "Routine consultation")
+        self.assertEqual(item["patient_note"], "Please call if running late")
+
+    def test_patient_cannot_read_or_download_unfinalized_consultation_note(self):
+        appointment = Appointment.objects.create(
+            member=self.member, doctor=self.doctor, requested_by=self.patient,
+            preferred_at=timezone.now() + timedelta(days=1),
+            scheduled_at=timezone.now() + timedelta(days=1), status=Appointment.Status.ACCEPTED,
+        )
+        ConsultationNote.objects.create(
+            appointment=appointment, doctor=self.doctor, member=self.member,
+            content="Draft clinical note", sections={"symptoms": "Headache"},
+        )
+        note_response = self.patient_client.get(f"/medlife/doctor/appointments/{appointment.pk}/notes/")
+        summary_response = self.patient_client.get(f"/medlife/doctor/appointments/{appointment.pk}/summary/")
+        self.assertEqual(note_response.status_code, 404)
+        self.assertEqual(summary_response.status_code, 404)
+
+    def test_patient_can_read_and_download_finalized_consultation_note(self):
+        appointment = Appointment.objects.create(
+            member=self.member, doctor=self.doctor, requested_by=self.patient,
+            preferred_at=timezone.now() + timedelta(days=1),
+            scheduled_at=timezone.now() + timedelta(days=1), status=Appointment.Status.ACCEPTED,
+        )
+        ConsultationNote.objects.create(
+            appointment=appointment, doctor=self.doctor, member=self.member,
+            content="Finalized clinical note", sections={"symptoms": "Headache"},
+            finalized_at=timezone.now(),
+        )
+        note_response = self.patient_client.get(f"/medlife/doctor/appointments/{appointment.pk}/notes/")
+        summary_response = self.patient_client.get(f"/medlife/doctor/appointments/{appointment.pk}/summary/")
+        self.assertEqual(note_response.status_code, 200, note_response.json())
+        self.assertIsNotNone(note_response.json()["finalized_at"])
+        self.assertEqual(summary_response.status_code, 200)
+        self.assertIn('attachment; filename="medlife-consultation-', summary_response["Content-Disposition"])

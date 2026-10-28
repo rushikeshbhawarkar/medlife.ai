@@ -206,7 +206,9 @@ export default function ConsultationNotesModal({ appointment, isDoctor = false, 
                     Draft
                   </span>
                 ) : (
-                  <span className="status-pill status-requested">Not Started</span>
+                  <span className="status-pill status-requested">
+                    {isDoctor ? 'Not Started' : 'Pending Finalization'}
+                  </span>
                 )}
 
                 {noteMeta?.finalized_at && (
@@ -214,7 +216,7 @@ export default function ConsultationNotesModal({ appointment, isDoctor = false, 
                     Finalized: {new Date(noteMeta.finalized_at).toLocaleString()}
                   </span>
                 )}
-                {noteMeta?.updated_at && !noteMeta?.finalized_at && (
+                {noteMeta?.updated_at && !noteMeta?.finalized_at && isDoctor && (
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Updated: {new Date(noteMeta.updated_at).toLocaleString()}
                   </span>
@@ -222,7 +224,7 @@ export default function ConsultationNotesModal({ appointment, isDoctor = false, 
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {noteMeta && (
+                {((isDoctor && noteMeta) || (!isDoctor && isFinalized)) && (
                   <Button
                     type="button"
                     variant="secondary"
@@ -235,7 +237,7 @@ export default function ConsultationNotesModal({ appointment, isDoctor = false, 
                   </Button>
                 )}
 
-                {noteMeta && (
+                {isDoctor && noteMeta && (
                   <Button
                     type="button"
                     variant="secondary"
@@ -250,8 +252,8 @@ export default function ConsultationNotesModal({ appointment, isDoctor = false, 
               </div>
             </div>
 
-            {/* Revision History Panel */}
-            {showRevisions && (
+            {/* Revision History Panel (Authorized doctors only) */}
+            {isDoctor && showRevisions && (
               <div
                 style={{
                   background: 'var(--bg-secondary)',
@@ -672,7 +674,13 @@ export default function ConsultationNotesModal({ appointment, isDoctor = false, 
                   </div>
                 ) : (
                   <div className="doctor-empty-state">
-                    <p>No consultation notes have been recorded for this appointment yet.</p>
+                    <FileText size={48} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>
+                      Consultation notes pending doctor finalization
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                      Verified clinical notes and official downloadable summaries become available once finalized by your consulting doctor.
+                    </p>
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>

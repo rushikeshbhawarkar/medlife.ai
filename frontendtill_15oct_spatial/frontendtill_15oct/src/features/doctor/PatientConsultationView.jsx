@@ -7,9 +7,13 @@ import DoctorChatModal from './DoctorChatModal.jsx';
 import ConsultationNotesModal from './ConsultationNotesModal.jsx';
 import {
   getPublicDoctors,
+  getPublicDoctorAvailability,
   getAppointments,
   requestAppointment,
   cancelAppointment,
+  requestAppointmentReschedule,
+  getRescheduleRequests,
+  decideRescheduleRequest,
   getChatRequests,
   requestChat,
   cancelChatRequest,
@@ -31,6 +35,34 @@ import {
   Plus,
 } from 'lucide-react';
 import './doctor.css';
+
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const getNextDateForWeekdayTime = (weekday, timeStr) => {
+  const now = new Date();
+  const [hours, minutes] = (timeStr || '09:00').split(':').map(Number);
+  const currentPyDay = (now.getDay() + 6) % 7; // Monday=0..Sunday=6
+  let daysAhead = (weekday - currentPyDay + 7) % 7;
+  const target = new Date(now);
+  target.setDate(now.getDate() + daysAhead);
+  target.setHours(hours, minutes, 0, 0);
+  if (target <= now) {
+    target.setDate(target.getDate() + 7);
+  }
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`;
+};
+
+const checkSlotMatch = (dateTimeStr, slots) => {
+  if (!dateTimeStr || !slots || slots.length === 0) return true;
+  const dt = new Date(dateTimeStr);
+  if (isNaN(dt.getTime())) return false;
+  const pyWeekday = (dt.getDay() + 6) % 7;
+  const timeStr = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+  return slots.some(
+    (slot) => slot.weekday === pyWeekday && slot.start_time <= timeStr && timeStr < slot.end_time
+  );
+};
 
 export default function PatientConsultationView({
   email,
@@ -56,6 +88,25 @@ export default function PatientConsultationView({
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Doctor availability state
+  const [doctorAvailability, setDoctorAvailability] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState('');
+
+  // Rescheduling state
+  const [rescheduleRequests, setRescheduleRequests] = useState([]);
+  const [loadingReschedules, setLoadingReschedules] = useState(false);
+  const [rescheduleModalApt, setRescheduleModalApt] = useState(null);
+  const [rescheduleDoctorAvailability, setRescheduleDoctorAvailability] = useState(null);
+  const [loadingRescheduleAvailability, setLoadingRescheduleAvailability] = useState(false);
+  const [rescheduleForm, setRescheduleForm] = useState({
+    proposed_at: '',
+    reason: '',
+  });
+  const [rescheduleModalError, setRescheduleModalError] = useState('');
+  const [submittingReschedule, setSubmittingReschedule] = useState(false);
+  const [decidingRescheduleId, setDecidingRescheduleId] = useState(null);
 
   // Modal-specific error & submission states
   const [bookingModalError, setBookingModalError] = useState('');
@@ -96,6 +147,31 @@ export default function PatientConsultationView({
     scopes: ['profile', 'documents', 'consultation_notes'],
   });
 
+  // Load doctor availability
+  const loadDoctorAvailability = useCallback(async (doctorId) => {
+    if (!doctorId) return;
+    try {
+      setLoadingAvailability(true);
+      setAvailabilityError('');
+      const data = await getPublicDoctorAvailability(doctorId);
+      setDoctorAvailability(data);
+    } catch (e) {
+      setAvailabilityError(e.message || 'Unable to retrieve doctor availability.');
+    } finally {
+      setLoadingAvailability(false);
+    }
+  }, []);
+
+  // Fetch availability when selected booking doctor changes
+  useEffect(() => {
+    if (bookingDoctor?.id) {
+      loadDoctorAvailability(bookingDoctor.id);
+    } else {
+      setDoctorAvailability(null);
+      setAvailabilityError('');
+    }
+  }, [bookingDoctor, loadDoctorAvailability]);
+
   // Load doctors
   const loadDoctors = useCallback(async () => {
     try {
@@ -120,6 +196,19 @@ export default function PatientConsultationView({
       // Non-blocking
     } finally {
       setLoadingAppointments(false);
+    }
+  }, []);
+
+  // Load patient reschedule requests
+  const loadReschedules = useCallback(async () => {
+    try {
+      setLoadingReschedules(true);
+      const data = await getRescheduleRequests('patient');
+      setRescheduleRequests(data?.reschedule_requests || []);
+    } catch {
+      // Non-blocking
+    } finally {
+      setLoadingReschedules(false);
     }
   }, []);
 
@@ -154,22 +243,26 @@ export default function PatientConsultationView({
   }, [loadDoctors]);
 
   useEffect(() => {
-    if (activeTab === 'appointments') loadAppointments();
+    if (activeTab === 'appointments') {
+      loadAppointments();
+      loadReschedules();
+    }
     if (activeTab === 'chats') loadChats();
     if (activeTab === 'consent') loadGrants();
-  }, [activeTab, loadAppointments, loadChats, loadGrants]);
+  }, [activeTab, loadAppointments, loadReschedules, loadChats, loadGrants]);
 
   // Direct navigation from notification
   useEffect(() => {
     if (targetAppointmentId) {
       setActiveTab('appointments');
       loadAppointments();
+      loadReschedules();
     }
     if (targetChatId) {
       setActiveTab('chats');
       loadChats();
     }
-  }, [targetAppointmentId, targetChatId, loadAppointments, loadChats]);
+  }, [targetAppointmentId, targetChatId, loadAppointments, loadReschedules, loadChats]);
 
   // Map known member names to database member_id from appointments/grants
   const memberIdMap = {};
@@ -236,6 +329,18 @@ export default function PatientConsultationView({
       return;
     }
 
+    // Availability validation if doctor has configured slots
+    if (doctorAvailability?.has_configured_slots) {
+      if (!doctorAvailability.slots || doctorAvailability.slots.length === 0) {
+        setBookingModalError('This doctor has no active weekly availability slots configured. Booking is unavailable.');
+        return;
+      }
+      if (!checkSlotMatch(bookingForm.preferred_at, doctorAvailability.slots)) {
+        setBookingModalError("The selected time is outside the doctor's active configured availability. Please choose a slot from the weekly schedule.");
+        return;
+      }
+    }
+
     const memberId = getResolvedMemberId(bookingForm.member_key, bookingForm.member_id);
     setSubmittingBooking(true);
 
@@ -249,16 +354,112 @@ export default function PatientConsultationView({
         consent_scopes: bookingForm.consent_scopes,
       });
       setSuccess(`Appointment request sent to ${bookingDoctor.name}. Awaiting doctor confirmation.`);
+      const savedDocId = bookingDoctor.id;
       setBookingDoctor(null);
       setBookingModalError('');
       setActiveTab('appointments');
       loadAppointments();
+      loadReschedules();
+      if (savedDocId) {
+        loadDoctorAvailability(savedDocId);
+      }
     } catch (err) {
       const msg = err.message || 'Unable to request appointment.';
       setBookingModalError(msg);
       setError(msg);
     } finally {
       setSubmittingBooking(false);
+    }
+  };
+
+  // Open reschedule modal for an appointment
+  const handleOpenReschedule = async (apt) => {
+    setRescheduleModalApt(apt);
+    setRescheduleModalError('');
+    setRescheduleForm({
+      proposed_at: '',
+      reason: '',
+    });
+    setRescheduleDoctorAvailability(null);
+    if (apt.doctor_id) {
+      try {
+        setLoadingRescheduleAvailability(true);
+        const data = await getPublicDoctorAvailability(apt.doctor_id);
+        setRescheduleDoctorAvailability(data);
+      } catch {
+        // Non-blocking
+      } finally {
+        setLoadingRescheduleAvailability(false);
+      }
+    }
+  };
+
+  // Submit rescheduling request
+  const handleRequestReschedule = async (e) => {
+    e.preventDefault();
+    if (!rescheduleModalApt) return;
+    setRescheduleModalError('');
+    setError('');
+    setSuccess('');
+
+    let isoProposed = '';
+    try {
+      const dt = new Date(rescheduleForm.proposed_at);
+      if (isNaN(dt.getTime())) throw new Error();
+      if (dt <= new Date()) {
+        setRescheduleModalError('Proposed appointment date and time must be in the future.');
+        return;
+      }
+      isoProposed = dt.toISOString();
+    } catch {
+      setRescheduleModalError('Please provide a valid date and time for proposed rescheduling.');
+      return;
+    }
+
+    if (rescheduleDoctorAvailability?.has_configured_slots) {
+      if (!rescheduleDoctorAvailability.slots || rescheduleDoctorAvailability.slots.length === 0) {
+        setRescheduleModalError('This doctor has no active availability slots configured.');
+        return;
+      }
+      if (!checkSlotMatch(rescheduleForm.proposed_at, rescheduleDoctorAvailability.slots)) {
+        setRescheduleModalError("The proposed time is outside the doctor's active configured availability. Please choose a slot from the weekly schedule.");
+        return;
+      }
+    }
+
+    setSubmittingReschedule(true);
+    try {
+      await requestAppointmentReschedule(
+        rescheduleModalApt.id,
+        isoProposed,
+        rescheduleForm.reason.trim()
+      );
+      setSuccess(`Reschedule request submitted for Appointment #${rescheduleModalApt.id}.`);
+      setRescheduleModalApt(null);
+      loadAppointments();
+      loadReschedules();
+    } catch (err) {
+      setRescheduleModalError(err.message || 'Unable to submit rescheduling request.');
+    } finally {
+      setSubmittingReschedule(false);
+    }
+  };
+
+  // Decide reschedule request (accept or reject doctor-proposed new time)
+  const handleRescheduleDecision = async (requestId, decision) => {
+    if (!window.confirm(`Are you sure you want to ${decision} this rescheduling proposal?`)) return;
+    setError('');
+    setSuccess('');
+    setDecidingRescheduleId(requestId);
+    try {
+      await decideRescheduleRequest(requestId, decision);
+      setSuccess(`Rescheduling proposal was ${decision}ed.`);
+      loadAppointments();
+      loadReschedules();
+    } catch (err) {
+      setError(err.message || 'Unable to update rescheduling request.');
+    } finally {
+      setDecidingRescheduleId(null);
     }
   };
 
@@ -301,6 +502,7 @@ export default function PatientConsultationView({
     try {
       await cancelAppointment(appointmentId);
       loadAppointments();
+      loadReschedules();
       setSuccess('Appointment cancelled successfully.');
     } catch (err) {
       setError(err.message || 'Unable to cancel appointment.');
@@ -504,7 +706,16 @@ export default function PatientConsultationView({
           ) : (
             <div className="requests-list">
               {appointments.map((apt) => {
+                const pendingReschedule = rescheduleRequests.find(
+                  (r) => r.appointment_id === apt.id && r.status === 'pending'
+                );
                 const canCancel = apt.status === 'requested' || apt.status === 'accepted';
+                const canReschedule = apt.status === 'accepted' && !pendingReschedule;
+                const isMyRescheduleProposal =
+                  pendingReschedule?.requested_by &&
+                  email &&
+                  pendingReschedule.requested_by.toLowerCase() === email.toLowerCase();
+
                 return (
                   <div key={apt.id} className="request-item-card">
                     <div className="request-item-header">
@@ -519,6 +730,12 @@ export default function PatientConsultationView({
                     </div>
 
                     <div className="request-details-grid">
+                      {apt.doctor_name && (
+                        <div className="request-detail-item">
+                          <span className="request-detail-label">Doctor</span>
+                          <span className="request-detail-val" style={{ fontWeight: 600 }}>{apt.doctor_name}</span>
+                        </div>
+                      )}
                       <div className="request-detail-item">
                         <span className="request-detail-label">Family Member</span>
                         <span className="request-detail-val">{apt.member_name || `Member #${apt.member_id}`}</span>
@@ -564,6 +781,52 @@ export default function PatientConsultationView({
                       </div>
                     )}
 
+                    {/* Pending Reschedule Banner */}
+                    {pendingReschedule && (
+                      <div className="reschedule-banner-box">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          <Clock size={16} color="var(--warning)" />
+                          <span>
+                            {isMyRescheduleProposal
+                              ? 'Rescheduling Request Pending Doctor Decision'
+                              : 'Doctor Proposed a New Appointment Time'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                          <strong>Proposed Time: </strong>
+                          {new Date(pendingReschedule.proposed_at).toLocaleString([], {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                          {pendingReschedule.reason && (
+                            <span> • <em>Reason: {pendingReschedule.reason}</em></span>
+                          )}
+                        </div>
+                        {!isMyRescheduleProposal && (
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem' }}>
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="sm"
+                              disabled={decidingRescheduleId === pendingReschedule.id}
+                              onClick={() => handleRescheduleDecision(pendingReschedule.id, 'accept')}
+                            >
+                              {decidingRescheduleId === pendingReschedule.id ? 'Accepting...' : 'Accept New Time'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="danger"
+                              size="sm"
+                              disabled={decidingRescheduleId === pendingReschedule.id}
+                              onClick={() => handleRescheduleDecision(pendingReschedule.id, 'reject')}
+                            >
+                              {decidingRescheduleId === pendingReschedule.id ? 'Declining...' : 'Decline'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="request-item-actions">
                       <Button
                         type="button"
@@ -573,6 +836,18 @@ export default function PatientConsultationView({
                       >
                         <FileText size={15} /> View Consultation Notes
                       </Button>
+
+                      {canReschedule && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenReschedule(apt)}
+                          title="Propose a new appointment time"
+                        >
+                          <Clock size={15} /> Reschedule
+                        </Button>
+                      )}
 
                       {canCancel && (
                         <Button
@@ -781,8 +1056,66 @@ export default function PatientConsultationView({
                   className="doctor-form-input"
                   required
                   value={bookingForm.preferred_at}
-                  onChange={(e) => setBookingForm({ ...bookingForm, preferred_at: e.target.value })}
+                  onChange={(e) => {
+                    setBookingForm({ ...bookingForm, preferred_at: e.target.value });
+                    setBookingModalError('');
+                  }}
                 />
+              </div>
+
+              {/* Doctor Availability Slots */}
+              <div className="doctor-form-group doctor-form-full">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <Clock size={15} color="var(--red-primary)" />
+                  Doctor Weekly Availability
+                </label>
+                {loadingAvailability ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    <Spinner size={16} /> Checking doctor bookable availability...
+                  </div>
+                ) : availabilityError ? (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--danger)', padding: '0.4rem 0' }}>
+                    {availabilityError}
+                  </div>
+                ) : doctorAvailability?.has_configured_slots === false ? (
+                  <div className="availability-notice info">
+                    <Clock size={15} />
+                    <span>Open Scheduling: Doctor accepts appointments across standard hours. Select any future date and time.</span>
+                  </div>
+                ) : doctorAvailability?.slots?.length === 0 ? (
+                  <div className="availability-notice warning">
+                    <AlertCircle size={16} />
+                    <span>This doctor currently has no active weekly availability slots configured. Booking is unavailable.</span>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ margin: '0 0 0.45rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Click an active weekly slot to set the next available date & time:
+                    </p>
+                    <div className="availability-chips-list">
+                      {(doctorAvailability?.slots || []).map((slot) => {
+                        const dayName = WEEKDAY_NAMES[slot.weekday] || `Day ${slot.weekday}`;
+                        return (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            className="availability-slot-btn"
+                            title={`Select next ${dayName} at ${slot.start_time}`}
+                            onClick={() => {
+                              const nextDt = getNextDateForWeekdayTime(slot.weekday, slot.start_time);
+                              setBookingForm((prev) => ({ ...prev, preferred_at: nextDt }));
+                              setBookingModalError('');
+                            }}
+                          >
+                            <Calendar size={13} />
+                            <strong>{dayName}</strong>
+                            <span>{slot.start_time} – {slot.end_time}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="doctor-form-group doctor-form-full">
@@ -868,8 +1201,143 @@ export default function PatientConsultationView({
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" disabled={submittingBooking}>
-                {submittingBooking ? 'Sending Request...' : 'Send Appointment Request'}
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={
+                  submittingBooking ||
+                  (doctorAvailability?.has_configured_slots &&
+                    doctorAvailability?.slots?.length === 0)
+                }
+              >
+                {submittingBooking
+                  ? 'Sending Request...'
+                  : doctorAvailability?.has_configured_slots &&
+                    doctorAvailability?.slots?.length === 0
+                  ? 'No Slots Available'
+                  : 'Send Appointment Request'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* RESCHEDULE APPOINTMENT MODAL */}
+      {rescheduleModalApt && (
+        <Modal
+          title={`Reschedule Appointment #${rescheduleModalApt.id}`}
+          subtitle={`Doctor: ${rescheduleModalApt.doctor_name || 'Assigned Doctor'} | Current: ${new Date(rescheduleModalApt.scheduled_at || rescheduleModalApt.preferred_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`}
+          onClose={() => {
+            setRescheduleModalApt(null);
+            setRescheduleModalError('');
+          }}
+          wide={true}
+        >
+          {rescheduleModalError && <Banner variant="error">{rescheduleModalError}</Banner>}
+          <form onSubmit={handleRequestReschedule} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="doctor-form-grid">
+              <div className="doctor-form-group doctor-form-full">
+                <label htmlFor="reschedule-date">Proposed New Date & Time *</label>
+                <input
+                  id="reschedule-date"
+                  type="datetime-local"
+                  className="doctor-form-input"
+                  required
+                  value={rescheduleForm.proposed_at}
+                  onChange={(e) => {
+                    setRescheduleForm({ ...rescheduleForm, proposed_at: e.target.value });
+                    setRescheduleModalError('');
+                  }}
+                />
+              </div>
+
+              {/* Doctor Availability for Rescheduling */}
+              <div className="doctor-form-group doctor-form-full">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <Clock size={15} color="var(--red-primary)" />
+                  Doctor Weekly Availability
+                </label>
+                {loadingRescheduleAvailability ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    <Spinner size={16} /> Checking doctor schedule...
+                  </div>
+                ) : rescheduleDoctorAvailability?.has_configured_slots === false ? (
+                  <div className="availability-notice info">
+                    <Clock size={15} />
+                    <span>Open Scheduling: Select any future time during standard operating hours.</span>
+                  </div>
+                ) : rescheduleDoctorAvailability?.slots?.length === 0 ? (
+                  <div className="availability-notice warning">
+                    <AlertCircle size={16} />
+                    <span>This doctor currently has no active weekly availability slots configured.</span>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ margin: '0 0 0.45rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Select a time within the doctor's active weekly slots:
+                    </p>
+                    <div className="availability-chips-list">
+                      {(rescheduleDoctorAvailability?.slots || []).map((slot) => {
+                        const dayName = WEEKDAY_NAMES[slot.weekday] || `Day ${slot.weekday}`;
+                        return (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            className="availability-slot-btn"
+                            title={`Select next ${dayName} at ${slot.start_time}`}
+                            onClick={() => {
+                              const nextDt = getNextDateForWeekdayTime(slot.weekday, slot.start_time);
+                              setRescheduleForm((prev) => ({ ...prev, proposed_at: nextDt }));
+                              setRescheduleModalError('');
+                            }}
+                          >
+                            <Calendar size={13} />
+                            <strong>{dayName}</strong>
+                            <span>{slot.start_time} – {slot.end_time}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="doctor-form-group doctor-form-full">
+                <label htmlFor="reschedule-reason">Reason for Rescheduling</label>
+                <input
+                  id="reschedule-reason"
+                  type="text"
+                  className="doctor-form-input"
+                  placeholder="e.g. Schedule conflict, family commitment, unwell"
+                  maxLength={1000}
+                  value={rescheduleForm.reason}
+                  onChange={(e) => setRescheduleForm({ ...rescheduleForm, reason: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={submittingReschedule}
+                onClick={() => {
+                  setRescheduleModalApt(null);
+                  setRescheduleModalError('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={
+                  submittingReschedule ||
+                  (rescheduleDoctorAvailability?.has_configured_slots &&
+                    rescheduleDoctorAvailability?.slots?.length === 0)
+                }
+              >
+                {submittingReschedule ? 'Submitting...' : 'Submit Reschedule Request'}
               </Button>
             </div>
           </form>
